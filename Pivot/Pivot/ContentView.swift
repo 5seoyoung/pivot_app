@@ -296,7 +296,7 @@ struct HomeHeroSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("안녕하세요").font(.system(size: 14)).foregroundColor(.textSecondary)
-            Text("\(profile?.patientCode ?? "내 이름") 님,\n오늘도 함께 회복해요")
+            Text("\(profile?.patientCode ?? "이소민") 님,\n오늘도 함께 회복해요")
                 .font(.system(size: 24, weight: .bold)).foregroundColor(.textPrimary).lineSpacing(4)
             podChip
         }
