@@ -8,6 +8,7 @@ struct PivotApp: App {
             PainRecord.self,
             ROMData.self,
             PatientProfile.self,
+            ExerciseLog.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
