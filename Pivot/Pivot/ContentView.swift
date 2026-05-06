@@ -3,6 +3,7 @@ import SwiftData
 import Charts
 import AVFoundation
 import Combine
+import CoreMotion
 
 // MARK: - Color System
 
@@ -205,6 +206,9 @@ struct NRSDotRow: View {
 
 struct MainTabView: View {
     @State private var selectedTab = 0
+    @State private var showOnboarding = false
+    @Query private var profiles: [PatientProfile]
+
     var body: some View {
         TabView(selection: $selectedTab) {
             HomeView(selectedTab: $selectedTab)
@@ -217,6 +221,403 @@ struct MainTabView: View {
                 .tabItem { Label("내 정보", systemImage: selectedTab == 3 ? "person.fill" : "person") }.tag(3)
         }
         .tint(.brand)
+        .onAppear { if profiles.isEmpty { showOnboarding = true } }
+        .fullScreenCover(isPresented: $showOnboarding) { OnboardingView() }
+    }
+}
+
+// MARK: - OnboardingView
+
+struct OnboardingView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var step = 0
+
+    // Step 0: 수술 정보
+    @State private var name = ""
+    @State private var surgeryDate = Date()
+    @State private var operatedSide = "우측"
+
+    // Step 1: 신체 정보
+    @State private var ageText = ""
+    @State private var heightText = ""
+    @State private var weightText = ""
+    @State private var legDiffText = ""
+    @State private var useInsole = false
+
+    // Step 2: 생활/임상 정보
+    @State private var preSurgeryActivity = "보통"
+    @State private var contralateralLegStatus = "정상"
+    @State private var currentAid = "없음"
+    @State private var fallHistoryCount = 0
+
+    let activityOptions = ["비활동적", "보통", "활동적", "매우 활동적"]
+    let contralateralOptions = ["정상", "이상 있음", "수술 예정"]
+    let aidOptions = ["없음", "지팡이", "목발", "워커"]
+
+    var canProceed: Bool {
+        switch step {
+        case 0: return !name.trimmingCharacters(in: .whitespaces).isEmpty
+        default: return true
+        }
+    }
+
+    func save() {
+        let profile = PatientProfile(
+            patientCode: name.trimmingCharacters(in: .whitespaces).isEmpty ? "환자" : name,
+            surgeryDate: surgeryDate,
+            operatedSide: operatedSide,
+            legLengthDifferenceMM: Double(legDiffText) ?? 0,
+            useInsole: useInsole,
+            age: Int(ageText) ?? 0,
+            weightKg: Double(weightText) ?? 0,
+            heightCm: Double(heightText) ?? 0,
+            preSurgeryActivity: preSurgeryActivity,
+            contralateralLegStatus: contralateralLegStatus,
+            currentAid: currentAid,
+            fallHistoryCount: fallHistoryCount
+        )
+        modelContext.insert(profile)
+        dismiss()
+    }
+
+    var body: some View {
+        ZStack {
+            Color.appBg.ignoresSafeArea()
+            VStack(spacing: 0) {
+                progressBar
+                TabView(selection: $step) {
+                    step0View.tag(0)
+                    step1View.tag(1)
+                    step2View.tag(2)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .animation(.easeInOut, value: step)
+
+                bottomButton
+            }
+        }
+        .interactiveDismissDisabled()
+    }
+
+    var progressBar: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 6) {
+                ForEach(0..<3) { i in
+                    Capsule()
+                        .fill(i <= step ? Color.brand : Color.divider)
+                        .frame(height: 4)
+                        .animation(.spring(response: 0.4), value: step)
+                }
+            }
+            .padding(.horizontal, 28)
+            Text("Step \(step + 1) / 3").font(.system(size: 12)).foregroundColor(.textSecondary)
+        }
+        .padding(.top, 60).padding(.bottom, 8)
+    }
+
+    var bottomButton: some View {
+        VStack(spacing: 12) {
+            Button {
+                if step < 2 {
+                    withAnimation { step += 1 }
+                } else {
+                    save()
+                }
+            } label: {
+                Text(step < 2 ? "다음" : "시작하기")
+                    .font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 17)
+                    .background(canProceed ? Color.brand : Color.textTertiary)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            .disabled(!canProceed)
+
+            if step > 0 {
+                Button { withAnimation { step -= 1 } } label: {
+                    Text("이전").font(.system(size: 15)).foregroundColor(.textSecondary)
+                }
+            }
+        }
+        .padding(.horizontal, 28).padding(.bottom, 40).padding(.top, 12)
+    }
+
+    // MARK: Step 0 - 수술 정보
+
+    var step0View: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                stepHeader(icon: "cross.case.fill", color: .brand,
+                           title: "수술 정보를 입력해요",
+                           subtitle: "회복 단계와 운동 프로그램을\n정확하게 맞춰드릴게요")
+
+                VStack(alignment: .leading, spacing: 20) {
+                    onboardingField(label: "이름") {
+                        TextField("이름을 입력하세요", text: $name)
+                            .font(.system(size: 16)).textInputAutocapitalization(.never)
+                    }
+
+                    onboardingField(label: "수술일") {
+                        DatePicker("", selection: $surgeryDate, displayedComponents: .date)
+                            .datePickerStyle(.compact).labelsHidden()
+                            .environment(\.locale, Locale(identifier: "ko_KR"))
+                    }
+
+                    onboardingField(label: "수술 측") {
+                        HStack(spacing: 10) {
+                            ForEach(["우측", "좌측"], id: \.self) { side in
+                                Button {
+                                    operatedSide = side
+                                } label: {
+                                    Text(side)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundColor(operatedSide == side ? .white : .textSecondary)
+                                        .padding(.horizontal, 24).padding(.vertical, 11)
+                                        .background(operatedSide == side ? Color.brand : Color.surfaceBg)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 20)
+        }
+    }
+
+    // MARK: Step 1 - 신체 정보
+
+    var step1View: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                stepHeader(icon: "figure.stand", color: .success,
+                           title: "신체 정보를 입력해요",
+                           subtitle: "BMI와 운동 강도 설정에\n활용돼요")
+
+                VStack(alignment: .leading, spacing: 20) {
+                    onboardingField(label: "나이") {
+                        HStack {
+                            TextField("0", text: $ageText).keyboardType(.numberPad)
+                                .font(.system(size: 16))
+                            Text("세").font(.system(size: 14)).foregroundColor(.textSecondary)
+                        }
+                    }
+
+                    onboardingField(label: "키") {
+                        HStack {
+                            TextField("0", text: $heightText).keyboardType(.decimalPad)
+                                .font(.system(size: 16))
+                            Text("cm").font(.system(size: 14)).foregroundColor(.textSecondary)
+                        }
+                    }
+
+                    onboardingField(label: "몸무게") {
+                        HStack {
+                            TextField("0", text: $weightText).keyboardType(.decimalPad)
+                                .font(.system(size: 16))
+                            Text("kg").font(.system(size: 14)).foregroundColor(.textSecondary)
+                        }
+                    }
+
+                    onboardingField(label: "다리 길이 차이") {
+                        HStack {
+                            TextField("0", text: $legDiffText).keyboardType(.decimalPad)
+                                .font(.system(size: 16))
+                            Text("mm").font(.system(size: 14)).foregroundColor(.textSecondary)
+                        }
+                    }
+
+                    onboardingField(label: "깔창 착용 여부") {
+                        Toggle("", isOn: $useInsole).tint(.brand)
+                    }
+                }
+            }
+            .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 20)
+        }
+    }
+
+    // MARK: Step 2 - 생활/임상 정보
+
+    var step2View: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                stepHeader(icon: "heart.text.clipboard.fill", color: .warning,
+                           title: "생활 정보를 입력해요",
+                           subtitle: "운동 권고 수준과 안전 관리에\n사용돼요")
+
+                VStack(alignment: .leading, spacing: 20) {
+                    onboardingField(label: "수술 전 활동도") {
+                        segmentedPicker(options: activityOptions, selected: $preSurgeryActivity)
+                    }
+
+                    onboardingField(label: "반대쪽 다리 상태") {
+                        segmentedPicker(options: contralateralOptions, selected: $contralateralLegStatus)
+                    }
+
+                    onboardingField(label: "현재 보조기구") {
+                        segmentedPicker(options: aidOptions, selected: $currentAid)
+                    }
+
+                    onboardingField(label: "최근 낙상 이력") {
+                        HStack(spacing: 16) {
+                            Button {
+                                if fallHistoryCount > 0 { fallHistoryCount -= 1 }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.system(size: 24)).foregroundColor(fallHistoryCount > 0 ? .brand : .textTertiary)
+                            }
+                            .buttonStyle(.plain)
+                            Text("\(fallHistoryCount)회")
+                                .font(.system(size: 18, weight: .semibold)).foregroundColor(.textPrimary)
+                                .frame(minWidth: 40, alignment: .center)
+                            Button { fallHistoryCount += 1 } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 24)).foregroundColor(.brand)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 20)
+        }
+    }
+
+    // MARK: Helpers
+
+    @ViewBuilder
+    func stepHeader(icon: String, color: Color, title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ZStack {
+                Circle().fill(color.opacity(0.12)).frame(width: 56, height: 56)
+                Image(systemName: icon).font(.system(size: 24)).foregroundColor(color)
+            }
+            Text(title).font(.system(size: 24, weight: .bold)).foregroundColor(.textPrimary)
+            Text(subtitle).font(.system(size: 15)).foregroundColor(.textSecondary).lineSpacing(4)
+        }
+    }
+
+    @ViewBuilder
+    func onboardingField<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label).font(.system(size: 13, weight: .semibold)).foregroundColor(.textSecondary)
+            HStack {
+                content()
+                Spacer()
+            }
+            .padding(.horizontal, 16).padding(.vertical, 14)
+            .background(Color.surfaceBg).clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    @ViewBuilder
+    func segmentedPicker(options: [String], selected: Binding<String>) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(options, id: \.self) { opt in
+                    Button { selected.wrappedValue = opt } label: {
+                        Text(opt)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(selected.wrappedValue == opt ? .white : .textSecondary)
+                            .padding(.horizontal, 16).padding(.vertical, 9)
+                            .background(selected.wrappedValue == opt ? Color.brand : Color.appCard)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(
+                                selected.wrappedValue == opt ? Color.brand : Color.divider, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - SafetyGateBlockView
+
+struct SafetyGateBlockView: View {
+    enum SafetyBlockReason { case redFlag, acutePhase, muaRisk }
+
+    let reason: SafetyBlockReason
+    @Environment(\.dismiss) private var dismiss
+
+    var icon: String {
+        switch reason {
+        case .redFlag:    return "exclamationmark.triangle.fill"
+        case .acutePhase: return "bed.double.fill"
+        case .muaRisk:    return "calendar.badge.exclamationmark"
+        }
+    }
+    var iconColor: Color {
+        switch reason {
+        case .redFlag:    return .danger
+        case .acutePhase: return .warning
+        case .muaRisk:    return .brand
+        }
+    }
+    var title: String {
+        switch reason {
+        case .redFlag:    return "운동을 중단하세요"
+        case .acutePhase: return "아직 운동할 시기가 아니에요"
+        case .muaRisk:    return "외래 방문이 필요해요"
+        }
+    }
+    var body_text: String {
+        switch reason {
+        case .redFlag:
+            return "현재 증상이 위험 신호에 해당해요.\n지금 바로 병원에 연락하세요.\n\n운동을 계속하면 회복에 방해가 될 수 있어요."
+        case .acutePhase:
+            return "수술 후 7일까지는 입원 치료 기간이에요.\n이 시기에는 앱 운동 프로그램을 사용하지 않아요.\n\n의료진 지시에 따라 안전하게 회복하세요."
+        case .muaRisk:
+            return "수술 후 6주가 지났지만 무릎 굴곡이 90° 미만이에요.\n관절 유착 예방을 위해 외래 방문이 필요해요.\n\n운동 전에 먼저 의료진과 상담하세요."
+        }
+    }
+    var actionLabel: String {
+        switch reason {
+        case .redFlag:    return "병원 연락하기"
+        case .acutePhase: return "확인했어요"
+        case .muaRisk:    return "외래 예약 확인"
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 3).fill(Color.divider)
+                .frame(width: 36, height: 5).padding(.top, 12).padding(.bottom, 24)
+
+            VStack(spacing: 24) {
+                ZStack {
+                    Circle().fill(iconColor.opacity(0.12)).frame(width: 80, height: 80)
+                    Image(systemName: icon).font(.system(size: 36)).foregroundColor(iconColor)
+                }
+
+                VStack(spacing: 10) {
+                    Text(title).font(.system(size: 22, weight: .bold)).foregroundColor(.textPrimary)
+                    Text(body_text).font(.system(size: 15)).foregroundColor(.textSecondary)
+                        .multilineTextAlignment(.center).lineSpacing(5)
+                }
+
+                VStack(spacing: 12) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text(actionLabel)
+                            .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .background(iconColor).clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    if reason != .acutePhase {
+                        Button { dismiss() } label: {
+                            Text("닫기").font(.system(size: 15)).foregroundColor(.textSecondary)
+                        }
+                    }
+                }
+                .padding(.top, 8)
+            }
+            .padding(.horizontal, 28)
+            Spacer()
+        }
     }
 }
 
@@ -226,31 +627,65 @@ struct HomeView: View {
     @Binding var selectedTab: Int
     @Query private var profiles: [PatientProfile]
     @Query(sort: \PainRecord.date, order: .reverse) private var painRecords: [PainRecord]
+    @Query(sort: \ROMData.date, order: .reverse) private var romRecords: [ROMData]
     @State private var showPainCheck = false
     @State private var showExercise = false
+    @State private var showSafetyBlock = false
+    @State private var safetyBlockReason: SafetyGateBlockView.SafetyBlockReason = .redFlag
 
     var profile: PatientProfile? { profiles.first }
     var lastPain: PainRecord? { painRecords.first }
 
+    var safetyCheck: SafetyGateBlockView.SafetyBlockReason? {
+        guard let p = profile else { return nil }
+        if p.podDay <= 7 { return .acutePhase }
+        if let pain = lastPain, pain.isRedFlag { return .redFlag }
+        if p.podDay >= 42, let lastROM = romRecords.first, lastROM.kneeFlexion < 90 { return .muaRisk }
+        return nil
+    }
+
+    func onExerciseTap() {
+        if let reason = safetyCheck {
+            safetyBlockReason = reason
+            showSafetyBlock = true
+        } else {
+            showExercise = true
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    HomeHeroSection(profile: profile)
-                    HomeROMCard(selectedTab: $selectedTab).padding(.bottom, 24)
-                    if let p = profile { FollowUpScheduleCard(profile: p).padding(.bottom, 24) }
-                    HomeQuickMenu(showPainCheck: $showPainCheck, showExercise: $showExercise,
-                                  selectedTab: $selectedTab, phase: profile?.phase ?? "중기 회복기")
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HomeHeroSection(profile: profile)
+                        HomeROMCard(selectedTab: $selectedTab).padding(.bottom, 24)
+                        if let p = profile {
+                            FollowUpScheduleCard(profile: p)
+                                .id("followUp")
+                                .padding(.bottom, 24)
+                        }
+                        HomeQuickMenu(
+                            showPainCheck: $showPainCheck,
+                            onExerciseTap: onExerciseTap,
+                            selectedTab: $selectedTab,
+                            phase: profile?.phase ?? "중기 회복기",
+                            onFollowUpTap: { withAnimation { proxy.scrollTo("followUp", anchor: .top) } }
+                        )
                         .padding(.bottom, 24)
-                    if let pain = lastPain { HomeRecentPainCard(record: pain).padding(.bottom, 24) }
-                    HomeWeeklyChart()
-                    Color.clear.frame(height: 100)
+                        if let pain = lastPain { HomeRecentPainCard(record: pain).padding(.bottom, 24) }
+                        HomeWeeklyChart()
+                        Color.clear.frame(height: 100)
+                    }
                 }
+                .background(Color.appBg).navigationBarHidden(true)
             }
-            .background(Color.appBg).navigationBarHidden(true)
         }
         .sheet(isPresented: $showPainCheck) { PainCheckView().presentationDetents([.large]) }
         .sheet(isPresented: $showExercise) { ExerciseRecommendView().presentationDetents([.large]) }
+        .sheet(isPresented: $showSafetyBlock) {
+            SafetyGateBlockView(reason: safetyBlockReason).presentationDetents([.medium])
+        }
     }
 }
 
@@ -285,17 +720,25 @@ struct HomeHeroSection: View {
 
 struct HomeROMCard: View {
     @Binding var selectedTab: Int
-    let flexion: Double = 98
-    let extension_: Double = -2
+    @Query(sort: \ROMData.date, order: .reverse) private var romRecords: [ROMData]
+
     let flexionGoal: Double = 120
-    let extensionGoal: Double = -5
-    var progress: Double { min(flexion / flexionGoal, 1.0) }
+
+    var latest: ROMData? { romRecords.first }
+    var flexion: Double { latest?.kneeFlexion ?? 0 }
+    var extension_: Double { latest?.kneeExtension ?? 0 }
+    var hasData: Bool { latest != nil }
+    var progress: Double { hasData ? min(flexion / flexionGoal, 1.0) : 0 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             cardHeader
-            statsRow
-            progressBar
+            if hasData {
+                statsRow
+                progressBar
+            } else {
+                emptyState
+            }
             measureButton
         }
         .padding(20)
@@ -310,12 +753,18 @@ struct HomeROMCard: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("무릎 가동 범위 (ROM)").font(.system(size: 13)).foregroundColor(.textSecondary)
-                Text("오늘의 측정").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
+                Text(hasData ? "최근 측정 결과" : "오늘의 측정")
+                    .font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
             }
             Spacer()
-            Text("측정하기").font(.system(size: 12, weight: .bold)).foregroundColor(.white)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(Color.brand).clipShape(Capsule())
+            if let d = latest?.date {
+                Text(d.formatted(.dateTime.month().day()))
+                    .font(.system(size: 12)).foregroundColor(.textSecondary)
+            } else {
+                Text("측정하기").font(.system(size: 12, weight: .bold)).foregroundColor(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Color.brand).clipShape(Capsule())
+            }
         }
     }
 
@@ -326,10 +775,12 @@ struct HomeROMCard: View {
             ROMStatView(value: extension_, label: "신전", sublabel: "목표 0°~-5°", color: .success)
             Divider().frame(height: 52).padding(.horizontal, 16)
             VStack(alignment: .leading, spacing: 4) {
+                let remaining = flexionGoal - flexion
                 Text("\(Int(flexionGoal))°")
                     .font(.system(size: 26, weight: .bold)).foregroundColor(.textPrimary)
-                Text("+\(Int(flexionGoal - flexion))° 남음")
-                    .font(.system(size: 11, weight: .semibold)).foregroundColor(.success)
+                Text(remaining > 0 ? "+\(Int(remaining))° 남음" : "목표 달성!")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(remaining > 0 ? .success : .brand)
                 Text("굴곡 목표").font(.system(size: 12, weight: .semibold)).foregroundColor(.brand)
             }
         }
@@ -345,18 +796,29 @@ struct HomeROMCard: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.brand.opacity(0.12)).frame(height: 7)
-                    Capsule().fill(Color.brand).frame(width: geo.size.width * CGFloat(progress), height: 7)
+                    Capsule().fill(Color.brand)
+                        .frame(width: geo.size.width * CGFloat(progress), height: 7)
+                        .animation(.spring(response: 0.6), value: progress)
                 }
             }
             .frame(height: 7)
         }
     }
 
+    var emptyState: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "ruler").foregroundColor(.brand).font(.subheadline)
+            Text("아직 ROM 측정 기록이 없어요. 지금 측정해 보세요.")
+                .font(.system(size: 13)).foregroundColor(.textSecondary).lineSpacing(3)
+        }
+        .padding(12).background(Color.brand.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
     var measureButton: some View {
         Button { selectedTab = 1 } label: {
             HStack(spacing: 8) {
-                Image(systemName: "camera.viewfinder").font(.title3)
-                Text("카메라로 ROM 측정하기").font(.system(size: 16, weight: .bold))
+                Image(systemName: "sensor.tag.radiowaves.forward.fill").font(.title3)
+                Text("센서로 ROM 측정하기").font(.system(size: 16, weight: .bold))
             }
             .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 15)
             .background(Color.brand).clipShape(RoundedRectangle(cornerRadius: 14))
@@ -462,9 +924,34 @@ struct FollowUpRow: View {
 
 struct HomeQuickMenu: View {
     @Binding var showPainCheck: Bool
-    @Binding var showExercise: Bool
+    let onExerciseTap: () -> Void
     @Binding var selectedTab: Int
     let phase: String
+    let onFollowUpTap: () -> Void
+
+    @Query(sort: \PainRecord.date, order: .reverse) private var painRecords: [PainRecord]
+    @Query(sort: \ROMData.date, order: .reverse) private var romRecords: [ROMData]
+
+    var todayHasPain: Bool {
+        guard let latest = painRecords.first else { return false }
+        return Calendar.current.isDateInToday(latest.date)
+    }
+
+    var exerciseCount: Int {
+        ExerciseItem.mockData.filter { $0.phase.rawValue == phase }.count
+    }
+
+    var recordStreakDays: Int {
+        guard !romRecords.isEmpty else { return 0 }
+        var streak = 0
+        var checkDate = Calendar.current.startOfDay(for: .now)
+        for _ in 0..<30 {
+            let hasRecord = romRecords.contains { Calendar.current.isDate($0.date, inSameDayAs: checkDate) }
+            if hasRecord { streak += 1 } else { break }
+            checkDate = Calendar.current.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
+        }
+        return streak
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -472,16 +959,20 @@ struct HomeQuickMenu: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 QuickMenuCard(icon: "cross.case.fill", color: .warning, bgColor: .warningBg,
                               title: "통증 체크", subtitle: "오늘 증상 기록",
-                              badge: "오늘 미완료", badgeColor: .warning, badgeBg: .warningBg) { showPainCheck = true }
+                              badge: todayHasPain ? "오늘 완료" : "오늘 미완료",
+                              badgeColor: todayHasPain ? .success : .warning,
+                              badgeBg: todayHasPain ? .successBg : .warningBg) { showPainCheck = true }
                 QuickMenuCard(icon: "figure.run", color: .exMain, bgColor: .exLight,
                               title: "운동 추천", subtitle: "\(phase) 맞춤",
-                              badge: "3개 추천", badgeColor: .brand, badgeBg: .brandBg) { showExercise = true }
+                              badge: "\(exerciseCount)개 추천", badgeColor: .brand, badgeBg: .brandBg) { onExerciseTap() }
                 QuickMenuCard(icon: "chart.line.uptrend.xyaxis", color: .success, bgColor: .successBg,
                               title: "내 기록", subtitle: "ROM 추이 보기",
-                              badge: "7일 연속", badgeColor: .success, badgeBg: .successBg) { selectedTab = 2 }
+                              badge: recordStreakDays > 0 ? "\(recordStreakDays)일 연속" : "기록 없음",
+                              badgeColor: recordStreakDays > 0 ? .success : .textSecondary,
+                              badgeBg: recordStreakDays > 0 ? .successBg : Color.divider) { selectedTab = 2 }
                 QuickMenuCard(icon: "calendar.badge.clock", color: .brand, bgColor: .brandBg,
                               title: "다음 진료", subtitle: "외래 일정 확인",
-                              badge: "일정 보기", badgeColor: .brand, badgeBg: .brandBg) {}
+                              badge: "일정 보기", badgeColor: .brand, badgeBg: .brandBg) { onFollowUpTap() }
             }
             .padding(.horizontal, 20)
         }
@@ -538,9 +1029,32 @@ struct HomeRecentPainCard: View {
 // MARK: - Home: Weekly Chart
 
 struct HomeWeeklyChart: View {
-    let data: [(String, Double)] = [
-        ("월", 88), ("화", 90), ("수", 92), ("목", 91), ("금", 94), ("토", 96), ("일", 98)
-    ]
+    @Query(sort: \ROMData.date, order: .reverse) private var romRecords: [ROMData]
+
+    private let cal = Calendar.current
+    private let weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"]
+
+    var weekData: [(label: String, value: Double, isToday: Bool)] {
+        (0..<7).map { offset in
+            let date = cal.date(byAdding: .day, value: -(6 - offset), to: .now) ?? .now
+            let label = weekdayLabels[cal.component(.weekday, from: date) - 1]
+            let best = romRecords
+                .filter { cal.isDate($0.date, inSameDayAs: date) }
+                .map { $0.kneeFlexion }.max() ?? 0
+            return (label, best, offset == 6)
+        }
+    }
+
+    var todayValue: Double { weekData.last?.value ?? 0 }
+    var firstValue: Double { weekData.first(where: { $0.value > 0 })?.value ?? 0 }
+    var hasAnyData: Bool { weekData.contains(where: { $0.value > 0 }) }
+
+    var trendText: String {
+        guard todayValue > 0, firstValue > 0 else { return "-" }
+        let diff = todayValue - firstValue
+        return diff >= 0 ? "오늘 \(Int(todayValue))° ↑\(Int(diff))°" : "오늘 \(Int(todayValue))° ↓\(Int(-diff))°"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel(text: "이번 주 ROM 추이").padding(.horizontal, 20)
@@ -548,18 +1062,26 @@ struct HomeWeeklyChart: View {
                 HStack {
                     Text("무릎 굴곡 각도").font(.system(size: 15, weight: .bold)).foregroundColor(.textPrimary)
                     Spacer()
-                    Text("오늘 98° ↑10°").font(.system(size: 12, weight: .bold)).foregroundColor(.brand)
+                    Text(trendText).font(.system(size: 12, weight: .bold)).foregroundColor(.brand)
                 }
                 HStack(alignment: .bottom, spacing: 6) {
-                    ForEach(0..<data.count, id: \.self) { i in
-                        WeeklyBarItem(day: data[i].0, value: data[i].1, isToday: data[i].0 == "일")
+                    ForEach(0..<weekData.count, id: \.self) { i in
+                        WeeklyBarItem(day: weekData[i].label, value: weekData[i].value, isToday: weekData[i].isToday)
                     }
                 }
                 .frame(height: 90)
-                HStack {
-                    Text("시작 88°").font(.system(size: 11)).foregroundColor(.textSecondary)
-                    Spacer()
-                    Text("오늘 98°").font(.system(size: 11, weight: .bold)).foregroundColor(.brand)
+                if hasAnyData {
+                    HStack {
+                        Text(firstValue > 0 ? "7일 전 \(Int(firstValue))°" : "")
+                            .font(.system(size: 11)).foregroundColor(.textSecondary)
+                        Spacer()
+                        Text(todayValue > 0 ? "오늘 \(Int(todayValue))°" : "오늘 기록 없음")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(todayValue > 0 ? .brand : .textTertiary)
+                    }
+                } else {
+                    Text("이번 주 측정 기록이 없어요").font(.system(size: 12))
+                        .foregroundColor(.textSecondary).frame(maxWidth: .infinity, alignment: .center)
                 }
             }
             .padding(18).background(Color.surfaceBg)
@@ -571,19 +1093,29 @@ struct HomeWeeklyChart: View {
 }
 
 struct WeeklyBarItem: View {
-    let day: String; let value: Double; let isToday: Bool
-    var barHeight: CGFloat { CGFloat((value - 80.0) / 20.0 * 60.0) + 20.0 }
+    let day: String
+    let value: Double   // 0 = 기록 없음
+    let isToday: Bool
+
+    var hasData: Bool { value > 0 }
+    var barHeight: CGFloat {
+        guard hasData else { return 4 }
+        return max(8, CGFloat((value - 60.0) / 80.0 * 70.0) + 10.0)
+    }
+
     var body: some View {
         VStack(spacing: 5) {
-            if isToday {
+            if isToday && hasData {
                 Text("\(Int(value))°").font(.system(size: 10, weight: .bold)).foregroundColor(.brand)
             } else {
                 Color.clear.frame(height: 14)
             }
             RoundedRectangle(cornerRadius: 5)
-                .fill(isToday ? Color.brand : Color.brand.opacity(0.25)).frame(height: barHeight)
+                .fill(hasData ? (isToday ? Color.brand : Color.brand.opacity(0.3)) : Color.divider)
+                .frame(height: barHeight)
             Text(day).font(.system(size: 11))
-                .foregroundColor(isToday ? .brand : .textSecondary).fontWeight(isToday ? .bold : .regular)
+                .foregroundColor(isToday ? .brand : .textSecondary)
+                .fontWeight(isToday ? .bold : .regular)
         }
         .frame(maxWidth: .infinity)
     }
@@ -622,17 +1154,59 @@ struct QuickMenuCard: View {
     }
 }
 
-// MARK: - ROMCameraView
-// 무릎 ROM(카메라) + 발목 ROM(수동 입력) 통합 (1, 2)
+// MARK: - ROM Motion Manager
+
+final class ROMMotionManager: ObservableObject {
+    private let cm = CMMotionManager()
+    @Published var angle: Double = 0.0
+    @Published var isStable: Bool = false
+
+    private var history: [Double] = []
+    var isAvailable: Bool { cm.isDeviceMotionAvailable }
+
+    func start() {
+        guard cm.isDeviceMotionAvailable else { return }
+        cm.deviceMotionUpdateInterval = 1.0 / 30.0
+        cm.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
+            guard let self, let g = data?.gravity else { return }
+            // Angle of phone's long axis (Y) from downward direction
+            // 0° = vertical (hanging down), 90° = horizontal, 180° = vertical (pointing up)
+            let a = atan2(sqrt(g.x * g.x + g.z * g.z), g.y) * 180.0 / .pi
+            self.angle = a
+            self.history.append(a)
+            if self.history.count > 20 { self.history.removeFirst() }
+            if self.history.count >= 10 {
+                let range = (self.history.max() ?? 0) - (self.history.min() ?? 0)
+                self.isStable = range < 1.5
+            }
+        }
+    }
+
+    func stop() {
+        cm.stopDeviceMotionUpdates()
+        history.removeAll()
+        isStable = false
+    }
+}
+
+// MARK: - ROMCameraView (가속도계 기반 ROM 측정)
 
 struct ROMCameraView: View {
-    @State private var cameraAuthorized = false
-    @State private var isMeasuring = false
-    @State private var measuredFlexion: Double = 87.5
-    @State private var measuredExtension: Double = -2.0
+    @StateObject private var motion = ROMMotionManager()
+    @Environment(\.modelContext) private var modelContext
+    @Query private var profiles: [PatientProfile]
+
+    @State private var step = 0          // 0=intro 1=reference 2=flexion 3=result
+    @State private var referenceAngle: Double = 0
+    @State private var flexionAngle: Double = 0
     @State private var showAnkleInput = false
     @State private var ankleDorsiflexion: Double = 15
     @State private var anklePlantarflexion: Double = 35
+    @State private var kneeExtension: Double = 0
+    @State private var showSaved = false
+
+    var podDay: Int { profiles.first?.podDay ?? 0 }
+    var kneeFlexion: Double { max(0, flexionAngle - referenceAngle) }
 
     var body: some View {
         NavigationStack {
@@ -640,122 +1214,291 @@ struct ROMCameraView: View {
                 LinearGradient(colors: [Color(hex: "0D1117"), Color(hex: "1A1F2E")],
                                startPoint: .top, endPoint: .bottom).ignoresSafeArea()
                 VStack(spacing: 0) {
-                    angleOverlay.padding(.top, 16).padding(.horizontal, 20)
+                    topBar.padding(.top, 16).padding(.horizontal, 20)
                     Spacer()
-                    kneeGuide
+                    stepContent.padding(.horizontal, 28)
                     Spacer()
-                    bottomPanel.padding(.horizontal, 20).padding(.bottom, 36)
+                    bottomBar.padding(.horizontal, 20).padding(.bottom, 36)
                 }
             }
             .navigationBarHidden(true)
-            .onAppear { checkCameraStatus() }
+            .onAppear { motion.start() }
+            .onDisappear { motion.stop() }
             .sheet(isPresented: $showAnkleInput) {
-                AnkleROMInputSheet(dorsiflexion: $ankleDorsiflexion, plantarflexion: $anklePlantarflexion)
-                    .presentationDetents([.medium])
+                AnkleROMInputSheet(dorsiflexion: $ankleDorsiflexion, plantarflexion: $anklePlantarflexion,
+                                   kneeExtension: $kneeExtension)
+                    .presentationDetents([.large])
             }
         }
     }
 
-    var angleOverlay: some View {
-        HStack(spacing: 14) {
-            AngleCard(label: "굴곡", value: isMeasuring ? measuredFlexion : 0, color: .brand)
-            AngleCard(label: "신전", value: isMeasuring ? measuredExtension : 0, color: .success)
+    // MARK: Top bar
+
+    var topBar: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("ROM 측정").font(.system(size: 22, weight: .bold)).foregroundColor(.white)
+                Text(stepSubtitle).font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
+            }
             Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("굴곡 목표").font(.caption2).foregroundColor(.white.opacity(0.5))
-                Text("120°").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
-                Text("신전 목표 0°~-5°").font(.caption2).foregroundColor(.success.opacity(0.8))
+            if step == 1 || step == 2 {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("현재 각도").font(.caption2).foregroundColor(.white.opacity(0.45))
+                    HStack(alignment: .lastTextBaseline, spacing: 1) {
+                        Text(String(format: "%.1f", motion.angle))
+                            .font(.system(size: 26, weight: .bold)).foregroundColor(.brand)
+                            .contentTransition(.numericText()).animation(.easeOut(duration: 0.1), value: motion.angle)
+                        Text("°").font(.subheadline).foregroundColor(.brand.opacity(0.8))
+                    }
+                }
             }
         }
-        .padding(18).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 18))
     }
 
-    var kneeGuide: some View {
-        ZStack {
-            Circle()
-                .strokeBorder(isMeasuring ? Color.brand : Color.white.opacity(0.3),
-                              style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                .frame(width: 220, height: 220)
-                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isMeasuring)
-            VStack(spacing: 10) {
-                Image(systemName: isMeasuring ? "waveform.path.ecg" : "figure.stand")
-                    .font(.system(size: 48, weight: .thin))
-                    .foregroundColor(isMeasuring ? .brand : .white.opacity(0.7))
-                Text(isMeasuring ? "측정 중..." : "무릎을 원 안에\n맞춰 주세요")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(isMeasuring ? .brand : .white.opacity(0.75))
+    var stepSubtitle: String {
+        switch step {
+        case 0: return "가속도계로 무릎 굴곡을 측정해요"
+        case 1: return "Step 1 / 2 — 기준 각도 설정"
+        case 2: return "Step 2 / 2 — 굴곡 측정"
+        default: return "측정 완료"
+        }
+    }
+
+    // MARK: Step content
+
+    @ViewBuilder
+    var stepContent: some View {
+        switch step {
+        case 0: introStep
+        case 1: referenceStep
+        case 2: flexionStep
+        default: resultStep
+        }
+    }
+
+    var introStep: some View {
+        VStack(spacing: 28) {
+            ZStack {
+                Circle().fill(Color.brand.opacity(0.12)).frame(width: 120, height: 120)
+                Image(systemName: "iphone.homebutton.landscape")
+                    .font(.system(size: 50)).foregroundColor(.brand)
+            }
+            VStack(spacing: 12) {
+                Text("스마트폰으로\n무릎 ROM을 측정해요")
+                    .font(.system(size: 22, weight: .bold)).foregroundColor(.white)
+                    .multilineTextAlignment(.center).lineSpacing(4)
+                Text("가속도 센서를 이용해 정확한\n굴곡 각도를 측정할 수 있어요")
+                    .font(.system(size: 14)).foregroundColor(.white.opacity(0.6))
                     .multilineTextAlignment(.center).lineSpacing(4)
             }
+            VStack(alignment: .leading, spacing: 12) {
+                instructionRow(num: "1", text: "의자에 앉아 발을 바닥에 자연스럽게 놓으세요")
+                instructionRow(num: "2", text: "정강이 앞면에 스마트폰을 세로로 올려주세요")
+                instructionRow(num: "3", text: "화면이 앞을 향하도록 고정해 주세요")
+            }
+            .padding(18).background(Color.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 16))
+
+            if !motion.isAvailable {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.warning)
+                    Text("이 기기에서 동작 센서를 사용할 수 없어요").font(.system(size: 13)).foregroundColor(.warning)
+                }
+            }
         }
     }
 
-    var bottomPanel: some View {
-        VStack(spacing: 10) {
-            if !cameraAuthorized {
-                HStack(spacing: 8) {
-                    Image(systemName: "camera.fill").foregroundColor(.white.opacity(0.6))
-                    Text("설정에서 카메라 권한을 허용해 주세요")
-                        .font(.subheadline).foregroundColor(.white.opacity(0.6))
-                }
-                .padding(.vertical, 10).padding(.horizontal, 18)
-                .background(.ultraThinMaterial).clipShape(Capsule())
+    var referenceStep: some View {
+        VStack(spacing: 28) {
+            arcDisplay(angle: motion.angle, color: .success, label: "기준 각도")
+            VStack(spacing: 8) {
+                Text("다리를 자연스럽게 내리세요")
+                    .font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                Text("발을 바닥에 놓고 정강이를\n최대한 수직으로 유지해 주세요")
+                    .font(.system(size: 14)).foregroundColor(.white.opacity(0.6))
+                    .multilineTextAlignment(.center).lineSpacing(4)
             }
-            HStack(spacing: 10) {
+            stabilityBadge
+        }
+    }
+
+    var flexionStep: some View {
+        VStack(spacing: 28) {
+            arcDisplay(angle: max(0, motion.angle - referenceAngle), color: .brand, label: "굴곡 각도")
+            VStack(spacing: 8) {
+                Text("무릎을 최대한 구부리세요")
+                    .font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                Text("통증 없는 범위에서 구부린 뒤\n그 자세를 유지해 주세요")
+                    .font(.system(size: 14)).foregroundColor(.white.opacity(0.6))
+                    .multilineTextAlignment(.center).lineSpacing(4)
+            }
+            stabilityBadge
+        }
+    }
+
+    var resultStep: some View {
+        VStack(spacing: 28) {
+            arcDisplay(angle: kneeFlexion, color: kneeFlexion >= 90 ? .brand : .warning, label: "무릎 굴곡 ROM")
+            romTargetRow
+            if showSaved {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill").foregroundColor(.success)
+                    Text("기록이 저장되었어요").font(.system(size: 14, weight: .semibold)).foregroundColor(.success)
+                }
+                .padding(12).background(Color.success.opacity(0.12)).clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+    }
+
+    // MARK: Bottom bar
+
+    var bottomBar: some View {
+        HStack(spacing: 10) {
+            if step == 1 || step == 2 {
                 Button { showAnkleInput = true } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.up.arrow.down").font(.subheadline)
                         Text("발목 ROM").font(.system(size: 14, weight: .semibold))
                     }
                     .foregroundColor(.white.opacity(0.85))
-                    .padding(.horizontal, 18).padding(.vertical, 14)
+                    .padding(.horizontal, 18).padding(.vertical, 15)
                     .background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .buttonStyle(.plain)
+            }
+            Button { handleAction() } label: {
+                Text(actionLabel)
+                    .font(.system(size: 17, weight: .bold)).foregroundColor(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 16)
+                    .background(actionColor).clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: actionColor.opacity(0.5), radius: 14, x: 0, y: 5)
+            }
+            .buttonStyle(.plain)
+            .disabled(step == 3 && showSaved == false ? false : false) // always enabled
+        }
+    }
 
-                Button {
-                    if !cameraAuthorized { requestCamera(); return }
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
-                        isMeasuring.toggle()
-                        if isMeasuring {
-                            measuredFlexion = Double.random(in: 85...100)
-                            measuredExtension = Double.random(in: -5 ... 0)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isMeasuring ? "stop.circle.fill" : "circle.fill").font(.title2)
-                        Text(isMeasuring ? "측정 완료" : "측정 시작").font(.system(size: 17, weight: .bold))
-                    }
-                    .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
-                    .background(isMeasuring ? Color.danger : Color.brand)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: (isMeasuring ? Color.danger : Color.brand).opacity(0.5), radius: 14, x: 0, y: 5)
+    var actionLabel: String {
+        switch step {
+        case 0: return "시작하기"
+        case 1: return "기준 각도 설정"
+        case 2: return "측정 완료"
+        default: return showSaved ? "다시 측정" : "기록 저장"
+        }
+    }
+
+    var actionColor: Color {
+        switch step {
+        case 0: return .brand
+        case 1: return .success
+        case 2: return .brand
+        default: return showSaved ? Color(hex: "555567") : .success
+        }
+    }
+
+    func handleAction() {
+        switch step {
+        case 0:
+            withAnimation(.easeInOut(duration: 0.3)) { step = 1 }
+        case 1:
+            referenceAngle = motion.angle
+            withAnimation(.easeInOut(duration: 0.3)) { step = 2 }
+        case 2:
+            flexionAngle = motion.angle
+            withAnimation(.easeInOut(duration: 0.3)) { step = 3 }
+        default:
+            if showSaved {
+                showSaved = false
+                withAnimation(.easeInOut(duration: 0.3)) { step = 1 }
+            } else {
+                saveROM()
+            }
+        }
+    }
+
+    func saveROM() {
+        let record = ROMData(
+            kneeFlexion: kneeFlexion,
+            kneeExtension: kneeExtension,
+            ankleDorsiflexion: ankleDorsiflexion,
+            anklePlantarflexion: anklePlantarflexion,
+            podDay: podDay
+        )
+        modelContext.insert(record)
+        showSaved = true
+    }
+
+    // MARK: Subviews
+
+    @ViewBuilder
+    func arcDisplay(angle: Double, color: Color, label: String) -> some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle().stroke(color.opacity(0.12), lineWidth: 10).frame(width: 160, height: 160)
+                Circle().trim(from: 0, to: min(angle / 140.0, 1.0))
+                    .stroke(color, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .rotationEffect(.degrees(-90)).frame(width: 160, height: 160)
+                    .animation(.easeOut(duration: 0.15), value: angle)
+                VStack(spacing: 0) {
+                    Text(String(format: "%.1f", max(0, angle)))
+                        .font(.system(size: 44, weight: .bold)).foregroundColor(color)
+                        .contentTransition(.numericText()).animation(.easeOut(duration: 0.1), value: angle)
+                    Text("°").font(.system(size: 18)).foregroundColor(color.opacity(0.7))
                 }
-                .buttonStyle(.plain)
             }
+            Text(label).font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
         }
     }
 
-    func checkCameraStatus() {
-        cameraAuthorized = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
-    }
-    func requestCamera() {
-        AVCaptureDevice.requestAccess(for: .video) { granted in
-            DispatchQueue.main.async { cameraAuthorized = granted }
+    @ViewBuilder
+    func instructionRow(num: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(Color.brand.opacity(0.3)).frame(width: 26, height: 26)
+                Text(num).font(.system(size: 13, weight: .bold)).foregroundColor(.brand)
+            }
+            Text(text).font(.system(size: 14)).foregroundColor(.white.opacity(0.8))
         }
     }
-}
 
-struct AngleCard: View {
-    let label: String; let value: Double; let color: Color
-    var body: some View {
-        VStack(spacing: 3) {
-            Text(label).font(.caption).foregroundColor(.white.opacity(0.6))
-            HStack(alignment: .lastTextBaseline, spacing: 1) {
-                Text(String(format: "%.1f", value)).font(.system(size: 26, weight: .bold)).foregroundColor(color)
-                    .contentTransition(.numericText())
-                Text("°").font(.subheadline).foregroundColor(color.opacity(0.8))
-            }
+    var stabilityBadge: some View {
+        HStack(spacing: 8) {
+            Circle().fill(motion.isStable ? Color.success : Color.warning)
+                .frame(width: 8, height: 8)
+                .shadow(color: (motion.isStable ? Color.success : Color.warning).opacity(0.6), radius: 4)
+            Text(motion.isStable ? "안정됨 — 버튼을 눌러주세요" : "기기를 고정해 주세요...")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(motion.isStable ? .success : .warning)
+        }
+        .padding(.horizontal, 18).padding(.vertical, 10)
+        .background(.ultraThinMaterial).clipShape(Capsule())
+        .animation(.easeInOut(duration: 0.3), value: motion.isStable)
+    }
+
+    var romTargetRow: some View {
+        HStack(spacing: 0) {
+            Spacer()
+            romTarget(label: "4주 목표", value: "90°", met: kneeFlexion >= 90, color: .success)
+            Spacer()
+            Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1, height: 44)
+            Spacer()
+            romTarget(label: "8주 목표", value: "120°", met: kneeFlexion >= 120, color: .brand)
+            Spacer()
+            Rectangle().fill(Color.white.opacity(0.12)).frame(width: 1, height: 44)
+            Spacer()
+            romTarget(label: "최종 목표", value: "140°", met: kneeFlexion >= 140, color: .exMain)
+            Spacer()
+        }
+        .padding(16).background(Color.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    @ViewBuilder
+    func romTarget(label: String, value: String, met: Bool, color: Color) -> some View {
+        VStack(spacing: 5) {
+            Image(systemName: met ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 20)).foregroundColor(met ? color : .white.opacity(0.25))
+            Text(value).font(.system(size: 16, weight: .bold))
+                .foregroundColor(met ? color : .white.opacity(0.4))
+            Text(label).font(.system(size: 11)).foregroundColor(.white.opacity(0.45))
         }
     }
 }
@@ -765,51 +1508,97 @@ struct AngleCard: View {
 struct AnkleROMInputSheet: View {
     @Binding var dorsiflexion: Double
     @Binding var plantarflexion: Double
+    @Binding var kneeExtension: Double
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Text("발목 가동범위 (Ankle ROM)").font(.title3.bold()).foregroundColor(.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.top, 8)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 20) {
+                    Text("추가 ROM 입력").font(.title3.bold()).foregroundColor(.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.top, 8)
 
-                PivotCard {
-                    VStack(spacing: 20) {
-                        AnkleSlider(label: "배굴 (Dorsiflexion)",
-                                    detail: "발등 방향으로 올리기",
-                                    value: $dorsiflexion, range: 0...30, target: 20)
-                        Divider()
-                        AnkleSlider(label: "저굴 (Plantarflexion)",
-                                    detail: "발바닥 방향으로 내리기",
-                                    value: $plantarflexion, range: 0...60, target: 45)
+                    PivotCard {
+                        VStack(spacing: 20) {
+                            KneeExtensionSlider(value: $kneeExtension)
+                        }
                     }
-                }
-                .padding(.horizontal, 20)
+                    .padding(.horizontal, 20)
 
-                ankleGuide.padding(.horizontal, 20)
+                    PivotCard {
+                        VStack(spacing: 20) {
+                            AnkleSlider(label: "배굴 (Dorsiflexion)",
+                                        detail: "발등 방향으로 올리기",
+                                        value: $dorsiflexion, range: 0...30, target: 20)
+                            Divider()
+                            AnkleSlider(label: "저굴 (Plantarflexion)",
+                                        detail: "발바닥 방향으로 내리기",
+                                        value: $plantarflexion, range: 0...60, target: 45)
+                        }
+                    }
+                    .padding(.horizontal, 20)
 
-                Button {
-                    dismiss()
-                } label: {
-                    Text("저장").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
-                        .frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(Color.brand).clipShape(RoundedRectangle(cornerRadius: 14))
+                    inputGuide.padding(.horizontal, 20)
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("저장").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .background(Color.brand).clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain).padding(.horizontal, 20)
+                    Color.clear.frame(height: 20)
                 }
-                .buttonStyle(.plain).padding(.horizontal, 20)
-                Spacer()
             }
             .background(Color.appBg)
             .navigationBarHidden(true)
         }
     }
 
-    var ankleGuide: some View {
+    var inputGuide: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "info.circle.fill").foregroundColor(.brand).font(.subheadline)
-            Text("발목을 충분히 수축/이완되게, 너무 빠르거나 느리지 않은 속도로 측정해 주세요.")
+            Text("신전: 다리를 최대한 폈을 때 남은 굽힘 각도예요. 완전히 펴지면 0°, 굽힘이 남으면 양수 값이에요.")
                 .font(.system(size: 13)).foregroundColor(.textSecondary).lineSpacing(4)
         }
         .padding(14).background(Color.brandBg).clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+struct KneeExtensionSlider: View {
+    @Binding var value: Double
+
+    var color: Color { value <= 5 ? .success : value <= 15 ? .warning : .danger }
+    var goalText: String { value <= 0 ? "완전 신전 달성!" : "목표 0°까지 \(Int(value))° 남음" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("신전 부족 (Extension Lag)").font(.system(size: 15, weight: .semibold)).foregroundColor(.textPrimary)
+                    Text("다리를 완전히 폈을 때 남는 굽힘 각도").font(.system(size: 12)).foregroundColor(.textSecondary)
+                }
+                Spacer()
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text(String(format: "%.0f", value)).font(.system(size: 26, weight: .bold)).foregroundColor(color)
+                    Text("°").font(.system(size: 13)).foregroundColor(.textSecondary)
+                }
+            }
+            Slider(value: $value, in: 0...40, step: 1).tint(color)
+            HStack {
+                Text(goalText).font(.system(size: 11)).foregroundColor(color)
+                Spacer()
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(color.opacity(0.15)).frame(height: 4)
+                        Capsule().fill(color)
+                            .frame(width: min(geo.size.width * CGFloat(value / 40.0), geo.size.width), height: 4)
+                    }
+                }
+                .frame(width: 80, height: 4)
+            }
+        }
     }
 }
 
@@ -973,23 +1762,64 @@ struct NRSSliderSection: View {
 }
 
 struct SymptomSectionCard: View {
-    @Binding var redness: Bool; @Binding var swelling: Bool
-    @Binding var canWalk: Bool; @Binding var fever: Bool
+    @Binding var hasWoundDischarge: Bool
+    @Binding var redness: Bool
+    @Binding var swelling: Bool
+    @Binding var canWalk: Bool
+    @Binding var fever: Bool
+    @Binding var hasFallInjury: Bool
+
     var body: some View {
         PivotCard {
             VStack(alignment: .leading, spacing: 16) {
                 SectionHeader(title: "다음 증상이 있나요?", subtitle: "현재 상태를 모두 체크해 주세요")
                 VStack(spacing: 0) {
-                    SymptomToggleRow(systemName: "circle.fill", color: .danger, title: "발적", subtitle: "무릎이 붉어지거나 따뜻해요", isOn: $redness)
+                    SymptomToggleRow(systemName: "cross.case.fill", color: .danger,
+                                     title: "창상 분비물", subtitle: "절개 부위에서 진물이나 고름이 나와요",
+                                     isOn: $hasWoundDischarge)
                     Divider().padding(.leading, 54).padding(.vertical, 2)
-                    SymptomToggleRow(systemName: "drop.fill", color: .brand, title: "부종", subtitle: "무릎이 부었어요", isOn: $swelling)
+                    SymptomToggleRow(systemName: "circle.fill", color: .danger,
+                                     title: "발적 + 움직임 어려움", subtitle: "수술 부위가 붉어지며 움직이기 어려워요",
+                                     isOn: $redness)
                     Divider().padding(.leading, 54).padding(.vertical, 2)
-                    SymptomToggleRow(systemName: "figure.walk", color: .success, title: "보행 가능", subtitle: "혼자 걸을 수 있어요", isOn: $canWalk)
+                    SymptomToggleRow(systemName: "figure.fall", color: .warning,
+                                     title: "낙상", subtitle: "최근 넘어져서 출혈이나 불편함이 있어요",
+                                     isOn: $hasFallInjury)
                     Divider().padding(.leading, 54).padding(.vertical, 2)
-                    SymptomToggleRow(systemName: "thermometer.medium", color: .warning, title: "발열", subtitle: "열이 나는 것 같아요", isOn: $fever)
+                    SymptomToggleRow(systemName: "drop.fill", color: .brand,
+                                     title: "부종", subtitle: "무릎이 부었어요",
+                                     isOn: $swelling)
+                    Divider().padding(.leading, 54).padding(.vertical, 2)
+                    SymptomToggleRow(systemName: "figure.walk", color: .success,
+                                     title: "보행 가능", subtitle: "혼자 걸을 수 있어요",
+                                     isOn: $canWalk)
+                    Divider().padding(.leading, 54).padding(.vertical, 2)
+                    SymptomToggleRow(systemName: "thermometer.medium", color: .warning,
+                                     title: "발열", subtitle: "열이 나는 것 같아요",
+                                     isOn: $fever)
                 }
             }
         }
+    }
+}
+
+// NRS 7+ 시 등장하는 통증 지속 확인 카드
+struct PainPersistCard: View {
+    @Binding var painPersists: Bool
+    var body: some View {
+        PivotCard {
+            HStack(spacing: 14) {
+                PivotIcon(systemName: "clock.badge.exclamationmark", color: .danger, bgColor: .dangerBg, size: 40)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("통증 지속 여부 확인").font(.system(size: 15, weight: .semibold)).foregroundColor(.danger)
+                    Text("30분 이상 쉬어도 통증이 가라앉지 않나요?")
+                        .font(.system(size: 13)).foregroundColor(.textSecondary)
+                }
+                Spacer()
+                Toggle("", isOn: $painPersists).tint(.danger).labelsHidden()
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.danger.opacity(0.4), lineWidth: 1.5))
     }
 }
 
@@ -1000,8 +1830,13 @@ struct PainCheckView: View {
     @Query private var profiles: [PatientProfile]
     @State private var selectedPainTypes: Set<String> = []
     @State private var nrsScore: Double = 0
-    @State private var redness = false; @State private var swelling = false
-    @State private var canWalk = true;  @State private var fever = false
+    @State private var redness = false
+    @State private var swelling = false
+    @State private var canWalk = true
+    @State private var fever = false
+    @State private var hasWoundDischarge = false
+    @State private var painPersists = false
+    @State private var hasFallInjury = false
     @State private var showSavedBanner = false
 
     let painOptions: [(String, String, Color)] = [
@@ -1014,7 +1849,14 @@ struct PainCheckView: View {
 
     var podDay: Int { profiles.first?.podDay ?? 42 }
     var phase: String { profiles.first?.phase ?? "중기 회복기" }
-    var isRedFlag: Bool { redness && swelling && fever }
+
+    // 가드레일: 하나라도 해당 시 운동 전면 차단
+    var isRedFlag: Bool {
+        hasWoundDischarge ||
+        redness ||
+        (Int(nrsScore) >= 7 && painPersists) ||
+        hasFallInjury
+    }
 
     var body: some View {
         NavigationStack {
@@ -1035,12 +1877,19 @@ struct PainCheckView: View {
                 PainHeaderCard(podDay: podDay, phase: phase)
                 painTypeGrid
                 NRSSliderSection(nrsScore: $nrsScore)
-                SymptomSectionCard(redness: $redness, swelling: $swelling, canWalk: $canWalk, fever: $fever)
+                if Int(nrsScore) >= 7 {
+                    PainPersistCard(painPersists: $painPersists)
+                        .transition(.scale.combined(with: .opacity))
+                }
+                SymptomSectionCard(hasWoundDischarge: $hasWoundDischarge, redness: $redness,
+                                   swelling: $swelling, canWalk: $canWalk, fever: $fever,
+                                   hasFallInjury: $hasFallInjury)
                 if isRedFlag { redFlagCard.transition(.scale.combined(with: .opacity)) }
                 saveButton
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 36)
             .animation(.spring(response: 0.4), value: isRedFlag)
+            .animation(.spring(response: 0.35), value: Int(nrsScore) >= 7)
         }
     }
 
@@ -1062,8 +1911,8 @@ struct PainCheckView: View {
         HStack(alignment: .top, spacing: 14) {
             PivotIcon(systemName: "exclamationmark.triangle.fill", color: .danger, bgColor: .dangerBg, size: 40)
             VStack(alignment: .leading, spacing: 6) {
-                Text("의사 상담이 필요해요").font(.system(size: 16, weight: .bold)).foregroundColor(.danger)
-                Text("발적, 부종, 발열이 동시에 나타나고 있어요.\n담당 의사에게 빨리 연락해 주세요.")
+                Text("지금 바로 병원에 연락하세요").font(.system(size: 16, weight: .bold)).foregroundColor(.danger)
+                Text("위험 신호가 감지됐어요. 운동을 중단하고\n담당 의사에게 빨리 연락하거나 외래에 내원해 주세요.")
                     .font(.subheadline).foregroundColor(.textSecondary).lineSpacing(4)
             }
         }
@@ -1097,20 +1946,41 @@ struct PainCheckView: View {
     func savePainRecord() {
         modelContext.insert(PainRecord(
             nrsScore: Int(nrsScore), painTypes: Array(selectedPainTypes),
-            redness: redness, swelling: swelling, canWalk: canWalk, fever: fever, podDay: podDay
+            redness: redness, swelling: swelling, canWalk: canWalk, fever: fever, podDay: podDay,
+            hasWoundDischarge: hasWoundDischarge, painPersists: painPersists, hasFallInjury: hasFallInjury
         ))
         withAnimation(.spring(response: 0.4)) { showSavedBanner = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { withAnimation { showSavedBanner = false } }
         selectedPainTypes = []; nrsScore = 0
         redness = false; swelling = false; canWalk = true; fever = false
+        hasWoundDischarge = false; painPersists = false; hasFallInjury = false
     }
 }
 
 // MARK: - ExerciseRecommendView
 
 struct ExerciseRecommendView: View {
+    @Query private var profiles: [PatientProfile]
     @State private var selectedPhase: ExerciseItem.PODPhase = .mid
+    @State private var didSetInitialPhase = false
+
+    var profile: PatientProfile? { profiles.first }
+
+    var currentPODPhase: ExerciseItem.PODPhase {
+        switch profile?.phase ?? "" {
+        case "조기 회복기": return .early
+        case "중기 회복기": return .mid
+        case "후기 회복기": return .late
+        case "유지기":     return .maintenance
+        default:           return .early
+        }
+    }
+
+    var podDay: Int { profile?.podDay ?? 0 }
+
     var filtered: [ExerciseItem] { ExerciseItem.mockData.filter { $0.phase == selectedPhase } }
+
+    var isCurrentPhase: Bool { selectedPhase == currentPODPhase }
 
     var body: some View {
         NavigationStack {
@@ -1119,12 +1989,28 @@ struct ExerciseRecommendView: View {
                 ScrollView {
                     VStack(spacing: 14) {
                         phaseFilter
-                        ForEach(filtered) { ExerciseCard(exercise: $0) }
+                        if !isCurrentPhase {
+                            phaseNotice
+                        }
+                        ForEach(filtered) { item in
+                            ExerciseCard(exercise: item, podDay: podDay,
+                                         isCurrent: item.phase == currentPODPhase)
+                        }
+                        if filtered.isEmpty {
+                            Text("이 단계의 운동이 없어요").font(.subheadline)
+                                .foregroundColor(.textSecondary).padding(.top, 40)
+                        }
                     }
                     .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 36)
                 }
             }
             .navigationTitle("운동 추천").navigationBarTitleDisplayMode(.large)
+        }
+        .onAppear {
+            if !didSetInitialPhase {
+                selectedPhase = currentPODPhase
+                didSetInitialPhase = true
+            }
         }
     }
 
@@ -1132,25 +2018,45 @@ struct ExerciseRecommendView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(ExerciseItem.PODPhase.allCases, id: \.rawValue) { phase in
-                    ExercisePhaseButton(phase: phase, selectedPhase: $selectedPhase)
+                    ExercisePhaseButton(phase: phase, selectedPhase: $selectedPhase,
+                                        isCurrent: phase == currentPODPhase)
                 }
             }
             .padding(.horizontal, 20)
         }
+    }
+
+    var phaseNotice: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "info.circle.fill").foregroundColor(.brand).font(.subheadline)
+            Text("현재 회복 단계(\(currentPODPhase.rawValue))가 아닌 운동을 보고 있어요.")
+                .font(.system(size: 13)).foregroundColor(.textSecondary).lineSpacing(3)
+        }
+        .padding(12).background(Color.brandBg).clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
 struct ExercisePhaseButton: View {
     let phase: ExerciseItem.PODPhase
     @Binding var selectedPhase: ExerciseItem.PODPhase
+    let isCurrent: Bool
     var selected: Bool { selectedPhase == phase }
     var body: some View {
         Button { withAnimation(.spring(response: 0.3)) { selectedPhase = phase } } label: {
-            Text(phase.rawValue).font(.system(size: 14, weight: .medium))
-                .foregroundColor(selected ? .white : .textSecondary)
-                .padding(.horizontal, 16).padding(.vertical, 9)
-                .background(selected ? Color.exMain : Color.surfaceBg).clipShape(Capsule())
-                .shadow(color: selected ? Color.exMain.opacity(0.3) : .clear, radius: 5, x: 0, y: 2)
+            HStack(spacing: 5) {
+                Text(phase.rawValue).font(.system(size: 14, weight: .medium))
+                if isCurrent {
+                    Text("현재").font(.system(size: 11, weight: .bold))
+                        .foregroundColor(selected ? .white.opacity(0.85) : .exMain)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(selected ? Color.white.opacity(0.25) : Color.exLight)
+                        .clipShape(Capsule())
+                }
+            }
+            .foregroundColor(selected ? .white : .textSecondary)
+            .padding(.horizontal, 16).padding(.vertical, 9)
+            .background(selected ? Color.exMain : Color.surfaceBg).clipShape(Capsule())
+            .shadow(color: selected ? Color.exMain.opacity(0.3) : .clear, radius: 5, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
@@ -1160,7 +2066,24 @@ struct ExercisePhaseButton: View {
 
 struct ExerciseCard: View {
     let exercise: ExerciseItem
+    let podDay: Int
+    let isCurrent: Bool
     @State private var expanded = false
+    @State private var didSaveLog = false
+    @Environment(\.modelContext) private var modelContext
+
+    func saveLog(completedSets: Int) {
+        guard !didSaveLog else { return }
+        didSaveLog = true
+        let log = ExerciseLog(
+            exerciseTitle: exercise.title,
+            contractionSeconds: exercise.targetContractionSec,
+            completedSets: completedSets,
+            targetSets: exercise.targetSets,
+            podDay: podDay
+        )
+        modelContext.insert(log)
+    }
 
     var body: some View {
         Button { withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { expanded.toggle() } } label: {
@@ -1173,6 +2096,14 @@ struct ExerciseCard: View {
         .buttonStyle(.plain)
         .background(Color.appCard).clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 2)
+        .overlay(alignment: .topTrailing) {
+            if isCurrent {
+                Text("지금 추천").font(.system(size: 11, weight: .bold)).foregroundColor(.white)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Color.exMain).clipShape(Capsule())
+                    .padding(.top, 14).padding(.trailing, 14)
+            }
+        }
     }
 
     var exerciseRow: some View {
@@ -1202,9 +2133,11 @@ struct ExerciseCard: View {
 
             // 근수축 타이머 (3)
             if exercise.targetContractionSec > 0 {
-                ContractionTimer(targetSec: exercise.targetContractionSec, targetSets: exercise.targetSets)
+                ContractionTimer(targetSec: exercise.targetContractionSec, targetSets: exercise.targetSets,
+                                 onComplete: { saveLog(completedSets: exercise.targetSets) })
             } else {
-                RepCounter(targetSets: exercise.targetSets)
+                RepCounter(targetSets: exercise.targetSets,
+                           onComplete: { saveLog(completedSets: exercise.targetSets) })
             }
         }
     }
@@ -1231,6 +2164,7 @@ struct SpeedGuideRow: View {
 struct ContractionTimer: View {
     let targetSec: Int
     let targetSets: Int
+    var onComplete: (() -> Void)? = nil
     @State private var elapsed = 0
     @State private var isRunning = false
     @State private var completedSets = 0
@@ -1286,8 +2220,10 @@ struct ContractionTimer: View {
             elapsed += 1
             if elapsed >= targetSec {
                 isRunning = false
-                completedSets = min(completedSets + 1, targetSets)
-                if completedSets < targetSets { elapsed = 0 }
+                let newCount = min(completedSets + 1, targetSets)
+                completedSets = newCount
+                if newCount < targetSets { elapsed = 0 }
+                if newCount >= targetSets { onComplete?() }
             }
         }
     }
@@ -1308,6 +2244,7 @@ struct ContractionTimer: View {
 
 struct RepCounter: View {
     let targetSets: Int
+    var onComplete: (() -> Void)? = nil
     @State private var count = 0
     var body: some View {
         HStack {
@@ -1319,7 +2256,11 @@ struct RepCounter: View {
                 }
                 .buttonStyle(.plain)
                 Text("\(count) / \(targetSets)").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
-                Button { count = min(targetSets, count + 1) } label: {
+                Button {
+                    let next = min(targetSets, count + 1)
+                    count = next
+                    if next >= targetSets { onComplete?() }
+                } label: {
                     Image(systemName: "plus.circle.fill").font(.title2).foregroundColor(.exMain)
                 }
                 .buttonStyle(.plain)
@@ -1398,21 +2339,45 @@ struct PainBarChart: View {
 
 struct MyRecordsView: View {
     @State private var timeRange: TimeRange = .week
+    @Query private var profiles: [PatientProfile]
+    @Query(sort: \ROMData.date, order: .reverse) private var allROM: [ROMData]
+    @Query(sort: \PainRecord.date, order: .reverse) private var allPain: [PainRecord]
+
+    var profile: PatientProfile? { profiles.first }
     enum TimeRange: String, CaseIterable { case week = "7일"; case month = "30일"; case all = "전체" }
 
-    var romPoints: [ROMDataPoint] {
-        (0..<14).map { i in
-            ROMDataPoint(id: i,
-                         date: Calendar.current.date(byAdding: .day, value: -13 + i, to: .now) ?? .now,
-                         value: 65 + Double(i) * 2.2)
+    var currentPhaseIndex: Int {
+        switch profile?.phase ?? "" {
+        case "조기 회복기": return 0
+        case "중기 회복기": return 1
+        case "후기 회복기": return 2
+        case "유지기":     return 3
+        default:           return 0
         }
     }
-    var painPoints: [PainDataPoint] {
-        (0..<7).map { i in
-            PainDataPoint(id: i,
-                          date: Calendar.current.date(byAdding: .day, value: -6 + i, to: .now) ?? .now,
-                          nrs: max(1, 5 - i / 3))
+
+    var cutoff: Date {
+        switch timeRange {
+        case .week:  return Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .now
+        case .month: return Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+        case .all:   return .distantPast
         }
+    }
+
+    var filteredROM: [ROMData]     { allROM.filter  { $0.date >= cutoff } }
+    var filteredPain: [PainRecord] { allPain.filter { $0.date >= cutoff } }
+
+    var maxFlexion: Double { filteredROM.map { $0.kneeFlexion }.max() ?? 0 }
+    var avgNRS: Double {
+        guard !filteredPain.isEmpty else { return 0 }
+        return Double(filteredPain.map { $0.nrsScore }.reduce(0, +)) / Double(filteredPain.count)
+    }
+
+    var romPoints: [ROMDataPoint] {
+        filteredROM.reversed().enumerated().map { i, r in ROMDataPoint(id: i, date: r.date, value: r.kneeFlexion) }
+    }
+    var painPoints: [PainDataPoint] {
+        filteredPain.reversed().enumerated().map { i, p in PainDataPoint(id: i, date: p.date, nrs: p.nrsScore) }
     }
 
     var body: some View {
@@ -1446,11 +2411,14 @@ struct MyRecordsView: View {
     var summaryRow: some View {
         HStack(spacing: 10) {
             RecordSummaryCard(icon: "figure.walk.motion", color: .brand, bgColor: .brandBg,
-                              value: "89°", label: "최대 굴곡", sub: "목표 120°")
+                              value: maxFlexion > 0 ? "\(Int(maxFlexion))°" : "-",
+                              label: "최대 굴곡", sub: "목표 120°")
             RecordSummaryCard(icon: "cross.case.fill", color: .danger, bgColor: .dangerBg,
-                              value: "3.2점", label: "평균 통증", sub: "지난 7일")
+                              value: filteredPain.isEmpty ? "-" : String(format: "%.1f점", avgNRS),
+                              label: "평균 통증", sub: timeRange.rawValue + " 기준")
             RecordSummaryCard(icon: "checkmark.seal.fill", color: .success, bgColor: .successBg,
-                              value: "12회", label: "측정 횟수", sub: "이번 달")
+                              value: "\(filteredROM.count)회",
+                              label: "ROM 측정", sub: timeRange.rawValue + " 기준")
         }
     }
 
@@ -1458,7 +2426,11 @@ struct MyRecordsView: View {
         PivotCard {
             VStack(alignment: .leading, spacing: 16) {
                 SectionHeader(title: "무릎 굴곡 변화", subtitle: "Knee Flexion 각도 (°)")
-                ROMLineChart(points: romPoints)
+                if romPoints.isEmpty {
+                    chartEmptyState(message: "ROM 측정 기록이 없어요")
+                } else {
+                    ROMLineChart(points: romPoints)
+                }
             }
         }
     }
@@ -1467,25 +2439,53 @@ struct MyRecordsView: View {
         PivotCard {
             VStack(alignment: .leading, spacing: 16) {
                 SectionHeader(title: "통증 점수 변화", subtitle: "NRS 통증 척도 (0–10)")
-                PainBarChart(points: painPoints)
+                if painPoints.isEmpty {
+                    chartEmptyState(message: "통증 체크 기록이 없어요")
+                } else {
+                    PainBarChart(points: painPoints)
+                }
             }
         }
     }
 
+    @ViewBuilder
+    func chartEmptyState(message: String) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 32)).foregroundColor(.textTertiary)
+            Text(message).font(.system(size: 14)).foregroundColor(.textSecondary)
+        }
+        .frame(maxWidth: .infinity).frame(height: 120)
+    }
+
     var recoveryPhaseCard: some View {
-        PivotCard {
+        let phases: [(label: String, color: Color)] = [
+            ("조기\n1-4주", .success),
+            ("중기\n4-8주", .brand),
+            ("후기\n8-12주", .exMain),
+            ("유지기\n12주+", .warning)
+        ]
+        let connectorColors: [Color] = [
+            currentPhaseIndex > 0 ? .success : .divider,
+            currentPhaseIndex > 1 ? .brand   : .divider,
+            currentPhaseIndex > 2 ? .exMain  : .divider,
+        ]
+        return PivotCard {
             VStack(alignment: .leading, spacing: 16) {
-                SectionHeader(title: "회복 단계", subtitle: "임상 기준 (강동경희대병원)")
+                SectionHeader(title: "회복 단계", subtitle: "임상 기준 (Mass General Brigham)")
                 HStack(alignment: .top, spacing: 0) {
-                    PhaseStep(label: "초기\n2-6주", stepState: .done, color: .success)
-                    Spacer()
-                    Rectangle().fill(Color.success).frame(height: 3).padding(.top, 9)
-                    Spacer()
-                    PhaseStep(label: "중기\n6-12주", stepState: .current, color: .brand)
-                    Spacer()
-                    Rectangle().fill(Color.divider).frame(height: 3).padding(.top, 9)
-                    Spacer()
-                    PhaseStep(label: "후기/유지\n12주+", stepState: .upcoming, color: .exMain)
+                    ForEach(0..<phases.count, id: \.self) { i in
+                        let p = phases[i]
+                        let state: PhaseStep.StepState = i < currentPhaseIndex ? .done
+                                                       : i == currentPhaseIndex ? .current
+                                                       : .upcoming
+                        PhaseStep(label: p.label, stepState: state, color: p.color)
+                        if i < phases.count - 1 {
+                            Spacer()
+                            Rectangle().fill(connectorColors[i]).frame(height: 3).padding(.top, 9)
+                            Spacer()
+                        }
+                    }
                 }
             }
         }
@@ -1558,6 +2558,7 @@ struct InfoRow: View {
 
 struct ProfileView: View {
     @Query private var profiles: [PatientProfile]
+    @State private var showEdit = false
     var profile: PatientProfile? { profiles.first }
 
     var body: some View {
@@ -1567,14 +2568,25 @@ struct ProfileView: View {
                 ScrollView {
                     VStack(spacing: 14) {
                         profileCard
+                        bodyInfoSection
                         rehabInfoSection
                         legInfoSection
+                        clinicalInfoSection
                         appInfoSection
                     }
                     .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 36)
                 }
             }
             .navigationTitle("내 정보").navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("편집") { showEdit = true }
+                        .font(.system(size: 15, weight: .medium)).foregroundColor(.brand)
+                }
+            }
+        }
+        .sheet(isPresented: $showEdit) {
+            if let p = profile { EditProfileView(profile: p) }
         }
     }
 
@@ -1586,15 +2598,35 @@ struct ProfileView: View {
                     Image(systemName: "person.fill").font(.system(size: 28)).foregroundColor(.brand)
                 }
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(profile?.patientCode ?? "이소민")
+                    Text(profile?.patientCode ?? "-")
                         .font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                     HStack(spacing: 6) {
                         Circle().fill(Color.brand).frame(width: 6, height: 6)
-                        Text("수술 후 \(profile?.podDay ?? 0)일 • \(profile?.phase ?? "중기 회복기")")
+                        Text("수술 후 \(profile?.podDay ?? 0)일 • \(profile?.phase ?? "-")")
                             .font(.system(size: 13)).foregroundColor(.brand)
                     }
                 }
                 Spacer()
+            }
+        }
+    }
+
+    var bodyInfoSection: some View {
+        PivotCard {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("신체 정보").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
+                let age = profile?.age ?? 0
+                InfoRow(icon: "person.text.rectangle", color: .brand, title: "나이",
+                        value: age > 0 ? "\(age)세" : "-")
+                Divider()
+                let h = profile?.heightCm ?? 0
+                let w = profile?.weightKg ?? 0
+                InfoRow(icon: "ruler", color: .success, title: "키 / 몸무게",
+                        value: h > 0 || w > 0 ? "\(Int(h))cm / \(Int(w))kg" : "-")
+                Divider()
+                let bmi = profile?.bmi ?? 0
+                InfoRow(icon: "scalemass.fill", color: .warning, title: "BMI",
+                        value: bmi > 0 ? String(format: "%.1f", bmi) : "-")
             }
         }
     }
@@ -1607,10 +2639,10 @@ struct ProfileView: View {
                         value: profile?.surgeryDate.formatted(.dateTime.year().month().day()) ?? "-")
                 Divider()
                 InfoRow(icon: "figure.walk.motion", color: .success, title: "회복 단계",
-                        value: profile?.phase ?? "중기 회복기")
+                        value: profile?.phase ?? "-")
                 Divider()
                 InfoRow(icon: "hand.point.right.fill", color: .brand, title: "수술 측",
-                        value: profile?.operatedSide ?? "우측")
+                        value: profile?.operatedSide ?? "-")
                 Divider()
                 InfoRow(icon: "target", color: .warning, title: "굴곡 목표", value: "120° → 140°")
                 Divider()
@@ -1619,7 +2651,6 @@ struct ProfileView: View {
         }
     }
 
-    // 다리 길이 차이 + 깔창 (5)
     var legInfoSection: some View {
         PivotCard {
             VStack(alignment: .leading, spacing: 14) {
@@ -1660,6 +2691,27 @@ struct ProfileView: View {
         }
     }
 
+    var clinicalInfoSection: some View {
+        PivotCard {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("생활/임상 정보").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
+                InfoRow(icon: "flame.fill", color: .warning, title: "수술 전 활동도",
+                        value: profile?.preSurgeryActivity ?? "-")
+                Divider()
+                InfoRow(icon: "figure.walk.diamond.fill", color: .brand, title: "반대쪽 다리",
+                        value: profile?.contralateralLegStatus ?? "-")
+                Divider()
+                InfoRow(icon: "cane.and.walking.stick", color: .success, title: "현재 보조기구",
+                        value: profile?.currentAid ?? "-")
+                Divider()
+                let falls = profile?.fallHistoryCount ?? 0
+                InfoRow(icon: "exclamationmark.triangle.fill", color: falls > 0 ? .danger : .textTertiary,
+                        title: "낙상 이력",
+                        value: falls > 0 ? "\(falls)회" : "없음")
+            }
+        }
+    }
+
     var appInfoSection: some View {
         PivotCard {
             VStack(alignment: .leading, spacing: 14) {
@@ -1669,6 +2721,168 @@ struct ProfileView: View {
                 InfoRow(icon: "shield.lefthalf.filled", color: .success, title: "개인정보 처리방침", value: "보기 →")
             }
         }
+    }
+}
+
+// MARK: - EditProfileView
+
+struct EditProfileView: View {
+    @Bindable var profile: PatientProfile
+    @Environment(\.dismiss) private var dismiss
+
+    let activityOptions = ["비활동적", "보통", "활동적", "매우 활동적"]
+    let contralateralOptions = ["정상", "이상 있음", "수술 예정"]
+    let aidOptions = ["없음", "지팡이", "목발", "워커"]
+
+    @State private var heightText = ""
+    @State private var weightText = ""
+    @State private var legDiffText = ""
+    @State private var ageText = ""
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    editSection(title: "수술 정보") {
+                        editField(label: "이름") {
+                            TextField("이름", text: $profile.patientCode)
+                                .font(.system(size: 15)).textInputAutocapitalization(.never)
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "수술일") {
+                            DatePicker("", selection: $profile.surgeryDate, displayedComponents: .date)
+                                .datePickerStyle(.compact).labelsHidden()
+                                .environment(\.locale, Locale(identifier: "ko_KR"))
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "수술 측") {
+                            Picker("수술 측", selection: $profile.operatedSide) {
+                                Text("우측").tag("우측")
+                                Text("좌측").tag("좌측")
+                            }
+                            .pickerStyle(.segmented)
+                        }
+                    }
+
+                    editSection(title: "신체 정보") {
+                        editField(label: "나이") {
+                            HStack {
+                                TextField("0", text: $ageText, onCommit: { profile.age = Int(ageText) ?? profile.age })
+                                    .keyboardType(.numberPad).font(.system(size: 15))
+                                Text("세").foregroundColor(.textSecondary).font(.system(size: 14))
+                            }
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "키 (cm)") {
+                            TextField("0", text: $heightText, onCommit: { profile.heightCm = Double(heightText) ?? profile.heightCm })
+                                .keyboardType(.decimalPad).font(.system(size: 15))
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "몸무게 (kg)") {
+                            TextField("0", text: $weightText, onCommit: { profile.weightKg = Double(weightText) ?? profile.weightKg })
+                                .keyboardType(.decimalPad).font(.system(size: 15))
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "다리 길이 차이 (mm)") {
+                            TextField("0", text: $legDiffText, onCommit: { profile.legLengthDifferenceMM = Double(legDiffText) ?? profile.legLengthDifferenceMM })
+                                .keyboardType(.decimalPad).font(.system(size: 15))
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "깔창 착용") {
+                            Toggle("", isOn: $profile.useInsole).tint(.brand)
+                        }
+                    }
+
+                    editSection(title: "생활/임상 정보") {
+                        editField(label: "수술 전 활동도") {
+                            Picker("활동도", selection: $profile.preSurgeryActivity) {
+                                ForEach(activityOptions, id: \.self) { Text($0).tag($0) }
+                            }
+                            .pickerStyle(.menu).foregroundColor(.brand)
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "반대쪽 다리 상태") {
+                            Picker("반대쪽 다리", selection: $profile.contralateralLegStatus) {
+                                ForEach(contralateralOptions, id: \.self) { Text($0).tag($0) }
+                            }
+                            .pickerStyle(.menu).foregroundColor(.brand)
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "현재 보조기구") {
+                            Picker("보조기구", selection: $profile.currentAid) {
+                                ForEach(aidOptions, id: \.self) { Text($0).tag($0) }
+                            }
+                            .pickerStyle(.menu).foregroundColor(.brand)
+                        }
+                        Divider().padding(.horizontal, -4)
+                        editField(label: "낙상 이력") {
+                            HStack(spacing: 16) {
+                                Button { if profile.fallHistoryCount > 0 { profile.fallHistoryCount -= 1 } } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .font(.system(size: 22)).foregroundColor(profile.fallHistoryCount > 0 ? .brand : .textTertiary)
+                                }
+                                .buttonStyle(.plain)
+                                Text("\(profile.fallHistoryCount)회")
+                                    .font(.system(size: 16, weight: .semibold)).foregroundColor(.textPrimary)
+                                Button { profile.fallHistoryCount += 1 } label: {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 22)).foregroundColor(.brand)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 40)
+            }
+            .background(Color.appBg)
+            .navigationTitle("정보 편집").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("취소") { dismiss() }.foregroundColor(.textSecondary)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("완료") {
+                        profile.age = Int(ageText) ?? profile.age
+                        profile.heightCm = Double(heightText) ?? profile.heightCm
+                        profile.weightKg = Double(weightText) ?? profile.weightKg
+                        profile.legLengthDifferenceMM = Double(legDiffText) ?? profile.legLengthDifferenceMM
+                        dismiss()
+                    }
+                    .font(.system(size: 15, weight: .semibold)).foregroundColor(.brand)
+                }
+            }
+        }
+        .onAppear {
+            ageText = profile.age > 0 ? "\(profile.age)" : ""
+            heightText = profile.heightCm > 0 ? String(format: "%.0f", profile.heightCm) : ""
+            weightText = profile.weightKg > 0 ? String(format: "%.1f", profile.weightKg) : ""
+            legDiffText = profile.legLengthDifferenceMM > 0 ? String(format: "%.1f", profile.legLengthDifferenceMM) : ""
+        }
+    }
+
+    @ViewBuilder
+    func editSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title).font(.system(size: 13, weight: .semibold)).foregroundColor(.textSecondary)
+                .padding(.horizontal, 4).padding(.bottom, 8)
+            VStack(spacing: 0) {
+                content()
+            }
+            .padding(.horizontal, 16).padding(.vertical, 4)
+            .background(Color.appCard).clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+        }
+    }
+
+    @ViewBuilder
+    func editField<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack {
+            Text(label).font(.system(size: 15)).foregroundColor(.textPrimary)
+            Spacer()
+            content()
+        }
+        .padding(.vertical, 14)
     }
 }
 
