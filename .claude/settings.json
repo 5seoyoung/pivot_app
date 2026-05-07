@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(textutil -convert txt -stdout \"/Users/ohseoyoung/Documents/2026_4학년_etc/공모전/경희의대 AI 앱/모의 환자기록/Case 44, F_79, TKA\\(both\\).docx\")"
+    ]
+  }
+}

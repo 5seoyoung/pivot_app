@@ -17,6 +17,7 @@ final class PainRecord {
     var hasWoundDischarge: Bool  // 창상 진물/고름
     var painPersists: Bool       // 통증 NRS 7+ → 30분 이상 지속
     var hasFallInjury: Bool      // 낙상 후 출혈/불편
+    var stsCanStand: Bool        // STS: 의자에서 혼자 일어날 수 있는지 (Box 1 #10)
 
     init(
         date: Date = .now,
@@ -29,7 +30,8 @@ final class PainRecord {
         podDay: Int = 0,
         hasWoundDischarge: Bool = false,
         painPersists: Bool = false,
-        hasFallInjury: Bool = false
+        hasFallInjury: Bool = false,
+        stsCanStand: Bool = true
     ) {
         self.id = UUID()
         self.date = date
@@ -43,6 +45,7 @@ final class PainRecord {
         self.hasWoundDischarge = hasWoundDischarge
         self.painPersists = painPersists
         self.hasFallInjury = hasFallInjury
+        self.stsCanStand = stsCanStand
     }
 
     // 운동 전면 차단 조건 (가드레일) — 하나라도 해당 시 운동 중단 + 외래 권고
@@ -101,6 +104,10 @@ final class PatientProfile {
     var contralateralLegStatus: String // "정상" / "이상 있음" / "수술 예정"
     var currentAid: String             // "없음" / "지팡이" / "목발" / "워커"
     var fallHistoryCount: Int          // 낙상 이력 횟수
+    var recoveryGoal: String           // Box 1 #8: "집안보행" / "동네외출" / "가벼운운동" / "적극여가"
+    var hasBed: Bool                   // Box 1 #11: 침대 있음
+    var hasHighToilet: Bool            // Box 1 #11: 높은 변기(좌변기) 있음
+    var hasStairs: Bool                // Box 1 #11: 집에 계단 있음
 
     var bmi: Double {
         guard heightCm > 0 else { return 0 }
@@ -138,6 +145,83 @@ final class PatientProfile {
         followUpDates.first { $0.date > .now }
     }
 
+    // Box 2 Step 4 – Pace (보수/표준/적극)
+    var pace: String {
+        var score = 0
+        if age < 65 { score -= 1 } else if age >= 80 { score += 1 }
+        if fallHistoryCount == 1 { score += 1 } else if fallHistoryCount >= 2 { score += 2 }
+        switch preSurgeryActivity {
+        case "비활동적": score += 1
+        case "활동적", "매우 활동적": score -= 1
+        default: break
+        }
+        if contralateralLegStatus != "정상" { score += 1 }
+        if score <= -1 { return "적극" }
+        if score <= 1  { return "표준" }
+        return "보수"
+    }
+
+    // Box 2 Step 4 – Exercise endpoint (운동 카탈로그 상한선)
+    var exerciseEndpoint: ExerciseItem.PODPhase {
+        switch recoveryGoal {
+        case "집안보행": return .mid
+        case "동네외출": return .late
+        default:        return .maintenance
+        }
+    }
+
+    // Box 2 Step 5 – Lifestyle flags (거주환경 + 단계별 금기 자세)
+    var lifestyleFlags: [String] {
+        var flags: [String] = []
+        if podDay <= 56 {
+            flags.append("무릎 아래 쿠션·베개 금지 — 굴곡 구축 위험")
+        }
+        if !hasBed {
+            flags.append("바닥 생활 시 일어날 때 한쪽 무릎 집중 체중 금지")
+        }
+        if !hasHighToilet {
+            flags.append("낮은 변기 사용 시 과굴곡 주의 — 보조 기구 권장")
+        }
+        if hasStairs {
+            if podDay < 57 {
+                flags.append("계단 사용 삼가기 — 후기 회복기 이후부터 가능")
+            } else {
+                flags.append("계단 이용 시 난간 잡고 한 칸씩 천천히")
+            }
+        }
+        return flags
+    }
+
+    // Box 2 Step 6 – Weight-bearing level & gap analysis
+    var wbLevel: String {
+        switch currentAid {
+        case "워커":   return "NWB"
+        case "목발":   return "PWB"
+        case "지팡이": return "WBAT"
+        default:      return "FWB"
+        }
+    }
+
+    private var expectedWbLevel: String {
+        if podDay <= 7  { return "NWB"  }
+        if podDay <= 21 { return "PWB"  }
+        if podDay <= 42 { return "WBAT" }
+        return "FWB"
+    }
+
+    // "positive" = 예상보다 빠른 회복 (보조기 적게 사용)
+    // "negative" = 예상보다 느린 회복 (보조기 과의존)
+    // "none" = 프로토콜 부합
+    var gapAnalysis: String {
+        let order = ["NWB", "PWB", "WBAT", "FWB"]
+        guard let actualIdx   = order.firstIndex(of: wbLevel),
+              let expectedIdx = order.firstIndex(of: expectedWbLevel)
+        else { return "none" }
+        if actualIdx > expectedIdx { return "positive" }
+        if actualIdx < expectedIdx { return "negative" }
+        return "none"
+    }
+
     init(
         patientCode: String = "P001",
         surgeryDate: Date = Calendar.current.date(byAdding: .day, value: -56, to: .now) ?? .now,
@@ -150,7 +234,11 @@ final class PatientProfile {
         preSurgeryActivity: String = "보통",
         contralateralLegStatus: String = "정상",
         currentAid: String = "없음",
-        fallHistoryCount: Int = 0
+        fallHistoryCount: Int = 0,
+        recoveryGoal: String = "동네외출",
+        hasBed: Bool = true,
+        hasHighToilet: Bool = false,
+        hasStairs: Bool = false
     ) {
         self.id = UUID()
         self.patientCode = patientCode
@@ -165,6 +253,10 @@ final class PatientProfile {
         self.contralateralLegStatus = contralateralLegStatus
         self.currentAid = currentAid
         self.fallHistoryCount = fallHistoryCount
+        self.recoveryGoal = recoveryGoal
+        self.hasBed = hasBed
+        self.hasHighToilet = hasHighToilet
+        self.hasStairs = hasStairs
     }
 }
 
