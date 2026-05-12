@@ -1433,9 +1433,9 @@ struct ROMCameraView: View {
                     .multilineTextAlignment(.center).lineSpacing(4)
             }
             VStack(alignment: .leading, spacing: 12) {
-                instructionRow(num: "1", text: "의자에 앉아 발을 바닥에 자연스럽게 놓으세요")
-                instructionRow(num: "2", text: "정강이 앞면에 스마트폰을 세로로 올려주세요")
-                instructionRow(num: "3", text: "화면이 앞을 향하도록 고정해 주세요")
+                instructionRow(num: "1", text: "의자에 앉아 발을 바닥에 자연스럽게 내려놓으세요")
+                instructionRow(num: "2", text: "스마트폰 옆면(측면)을 정강이 앞에 세로로 밀착하세요")
+                instructionRow(num: "3", text: "화면이 앞을 향하도록 잡고 흔들리지 않게 고정하세요")
             }
             .padding(18).background(Color.white.opacity(0.06)).clipShape(RoundedRectangle(cornerRadius: 16))
 
@@ -1928,7 +1928,7 @@ struct SymptomSectionCard: View {
                                      isOn: $hasFallInjury)
                     Divider().padding(.leading, 54).padding(.vertical, 2)
                     SymptomToggleRow(systemName: "drop.fill", color: .brand,
-                                     title: "부종", subtitle: "무릎이 부었어요",
+                                     title: "부종", subtitle: "반대쪽과 비교해 눈에 띄게 붓거나 움직임이 불편해요",
                                      isOn: $swelling)
                     Divider().padding(.leading, 54).padding(.vertical, 2)
                     SymptomToggleRow(systemName: "figure.walk", color: .success,
@@ -1936,7 +1936,7 @@ struct SymptomSectionCard: View {
                                      isOn: $canWalk)
                     Divider().padding(.leading, 54).padding(.vertical, 2)
                     SymptomToggleRow(systemName: "thermometer.medium", color: .warning,
-                                     title: "발열", subtitle: "열이 나는 것 같아요",
+                                     title: "수술 부위 열감", subtitle: "무릎 주변에 화끈한 느낌이 나면 체크해 주세요",
                                      isOn: $fever)
                 }
             }
@@ -2034,7 +2034,7 @@ struct PainCheckView: View {
     var isRedFlag: Bool {
         hasWoundDischarge ||
         redness ||
-        (Int(nrsScore) >= 7 && painPersists) ||
+        Int(nrsScore) >= 6 ||
         hasFallInjury
     }
 
@@ -2057,10 +2057,6 @@ struct PainCheckView: View {
                 PainHeaderCard(podDay: podDay, phase: phase)
                 painTypeGrid
                 NRSSliderSection(nrsScore: $nrsScore)
-                if Int(nrsScore) >= 7 {
-                    PainPersistCard(painPersists: $painPersists)
-                        .transition(.scale.combined(with: .opacity))
-                }
                 SymptomSectionCard(hasWoundDischarge: $hasWoundDischarge, redness: $redness,
                                    swelling: $swelling, canWalk: $canWalk, fever: $fever,
                                    hasFallInjury: $hasFallInjury)
@@ -2070,7 +2066,6 @@ struct PainCheckView: View {
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 36)
             .animation(.spring(response: 0.4), value: isRedFlag)
-            .animation(.spring(response: 0.35), value: Int(nrsScore) >= 7)
         }
     }
 

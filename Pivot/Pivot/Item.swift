@@ -52,7 +52,7 @@ final class PainRecord {
     var isRedFlag: Bool {
         hasWoundDischarge ||                        // 창상 진물/고름
         redness ||                                  // 발적 + 움직이기 어려움
-        (nrsScore >= 7 && painPersists) ||          // NRS 7+ 통증 30분+ 지속
+        nrsScore >= 6 ||                            // NRS 6+ (보수적 기준, 회의 확정)
         hasFallInjury                               // 낙상 후 출혈/불편
     }
 }
