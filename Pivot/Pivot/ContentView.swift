@@ -247,19 +247,13 @@ struct OnboardingView: View {
     @State private var useInsole = false
 
     // Step 2: 생활/임상 정보
-    @State private var preSurgeryActivity = "보통"
-    @State private var contralateralLegStatus = "정상"
+    @State private var preSurgeryActivity = "집안일 수준"
+    @State private var contralateralLegStatus = "괜찮아요"
     @State private var currentAid = "없음"
-    @State private var fallHistoryCount = 0
-    @State private var recoveryGoal = "동네외출"
-    @State private var hasBed = true
-    @State private var hasHighToilet = false
-    @State private var hasStairs = false
 
-    let activityOptions = ["비활동적", "보통", "활동적", "매우 활동적"]
-    let contralateralOptions = ["정상", "이상 있음", "수술 예정"]
+    let activityOptions = ["거의 누워·앉아", "집안일 수준", "동네 산책", "정기적 운동"]
+    let contralateralOptions = ["괜찮아요", "가끔 불편함", "자주 아픔"]
     let aidOptions = ["없음", "지팡이", "목발", "워커"]
-    let recoveryGoalOptions = ["집안보행", "동네외출", "가벼운운동", "적극여가"]
 
     var canProceed: Bool {
         switch step {
@@ -280,12 +274,7 @@ struct OnboardingView: View {
             heightCm: Double(heightText) ?? 0,
             preSurgeryActivity: preSurgeryActivity,
             contralateralLegStatus: contralateralLegStatus,
-            currentAid: currentAid,
-            fallHistoryCount: fallHistoryCount,
-            recoveryGoal: recoveryGoal,
-            hasBed: hasBed,
-            hasHighToilet: hasHighToilet,
-            hasStairs: hasStairs
+            currentAid: currentAid
         )
         modelContext.insert(profile)
         dismiss()
@@ -375,7 +364,7 @@ struct OnboardingView: View {
 
                     onboardingField(label: "수술 측") {
                         HStack(spacing: 10) {
-                            ForEach(["우측", "좌측"], id: \.self) { side in
+                            ForEach(["우측", "좌측", "양측"], id: \.self) { side in
                                 Button {
                                     operatedSide = side
                                 } label: {
@@ -457,44 +446,6 @@ struct OnboardingView: View {
                            subtitle: "운동 권고 수준과 안전 관리에\n사용돼요")
 
                 VStack(alignment: .leading, spacing: 20) {
-                    onboardingField(label: "회복 목표") {
-                        VStack(spacing: 8) {
-                            ForEach(recoveryGoalOptions, id: \.self) { option in
-                                Button {
-                                    recoveryGoal = option
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        Circle()
-                                            .fill(recoveryGoal == option ? Color.brand : Color.divider)
-                                            .frame(width: 18, height: 18)
-                                            .overlay(
-                                                Circle().fill(.white).frame(width: 7, height: 7)
-                                                    .opacity(recoveryGoal == option ? 1 : 0)
-                                            )
-                                        Text(option)
-                                            .font(.system(size: 15, weight: recoveryGoal == option ? .semibold : .regular))
-                                            .foregroundColor(recoveryGoal == option ? .brand : .textPrimary)
-                                        Spacer()
-                                        Text(goalSubtitle(option))
-                                            .font(.system(size: 12)).foregroundColor(.textSecondary)
-                                    }
-                                    .padding(.horizontal, 14).padding(.vertical, 10)
-                                    .background(recoveryGoal == option ? Color.brandBg : Color.surfaceBg)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-
-                    onboardingField(label: "거주 환경") {
-                        VStack(spacing: 10) {
-                            livingEnvToggle(label: "침대 사용", icon: "bed.double.fill", isOn: $hasBed)
-                            livingEnvToggle(label: "높은 변기(좌변기)", icon: "toilet.fill", isOn: $hasHighToilet)
-                            livingEnvToggle(label: "집에 계단 있음", icon: "stairs", isOn: $hasStairs)
-                        }
-                    }
-
                     onboardingField(label: "수술 전 활동도") {
                         segmentedPicker(options: activityOptions, selected: $preSurgeryActivity)
                     }
@@ -507,52 +458,10 @@ struct OnboardingView: View {
                         segmentedPicker(options: aidOptions, selected: $currentAid)
                     }
 
-                    onboardingField(label: "최근 낙상 이력") {
-                        HStack(spacing: 16) {
-                            Button {
-                                if fallHistoryCount > 0 { fallHistoryCount -= 1 }
-                            } label: {
-                                Image(systemName: "minus.circle.fill")
-                                    .font(.system(size: 24)).foregroundColor(fallHistoryCount > 0 ? .brand : .textTertiary)
-                            }
-                            .buttonStyle(.plain)
-                            Text("\(fallHistoryCount)회")
-                                .font(.system(size: 18, weight: .semibold)).foregroundColor(.textPrimary)
-                                .frame(minWidth: 40, alignment: .center)
-                            Button { fallHistoryCount += 1 } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 24)).foregroundColor(.brand)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
                 }
             }
             .padding(.horizontal, 28).padding(.top, 8).padding(.bottom, 20)
         }
-    }
-
-    func goalSubtitle(_ goal: String) -> String {
-        switch goal {
-        case "집안보행":   return "방 안 이동 가능"
-        case "동네외출":   return "외출·장보기"
-        case "가벼운운동": return "산책·수영 등"
-        case "적극여가":   return "골프·등산 등"
-        default:          return ""
-        }
-    }
-
-    @ViewBuilder
-    func livingEnvToggle(label: String, icon: String, isOn: Binding<Bool>) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon).font(.system(size: 16)).foregroundColor(.brand)
-                .frame(width: 24)
-            Text(label).font(.system(size: 15)).foregroundColor(.textPrimary)
-            Spacer()
-            Toggle("", isOn: isOn).tint(.brand).labelsHidden()
-        }
-        .padding(.horizontal, 14).padding(.vertical, 10)
-        .background(Color.surfaceBg).clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: Helpers
@@ -708,7 +617,7 @@ struct HomeView: View {
 
     var safetyCheck: SafetyGateBlockView.SafetyBlockReason? {
         guard let p = profile else { return nil }
-        if p.podDay <= 7 { return .acutePhase }
+        if p.podDay <= 14 { return .acutePhase }
         if let pain = lastPain, pain.isRedFlag { return .redFlag }
         if p.podDay >= 42, let lastROM = romRecords.first, lastROM.kneeFlexion < 90 { return .muaRisk }
         return nil
@@ -744,7 +653,6 @@ struct HomeView: View {
                         )
                         .padding(.bottom, 24)
                         if let p = profile {
-                            LifestyleFlagsCard(profile: p).padding(.bottom, 24)
                             GapAnalysisNudge(profile: p).padding(.bottom, 24)
                         }
                         if let pain = lastPain { HomeRecentPainCard(record: pain).padding(.bottom, 24) }
@@ -1192,37 +1100,6 @@ struct WeeklyBarItem: View {
                 .fontWeight(isToday ? .bold : .regular)
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Box 2 Step 5: Lifestyle Flags Card
-
-struct LifestyleFlagsCard: View {
-    let profile: PatientProfile
-
-    var body: some View {
-        let flags = profile.lifestyleFlags
-        if flags.isEmpty { EmptyView() } else {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionLabel(text: "생활 주의사항").padding(.horizontal, 20)
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(flags, id: \.self) { flag in
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .foregroundColor(.warning).font(.system(size: 14))
-                                .padding(.top, 1)
-                            Text(flag)
-                                .font(.system(size: 13)).foregroundColor(.textPrimary)
-                                .lineSpacing(3).fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
-                .padding(16).background(Color.warningBg)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: .black.opacity(0.03), radius: 6, x: 0, y: 2)
-                .padding(.horizontal, 20)
-            }
-        }
     }
 }
 
@@ -1965,7 +1842,14 @@ struct PainPersistCard: View {
 }
 
 struct STSCheckCard: View {
-    @Binding var stsCanStand: Bool
+    @Binding var stsScore: Int
+
+    private let options: [(Int, String, Color)] = [
+        (1, "도움 없이 가능", .success),
+        (2, "한 손 짚으면 가능", .brand),
+        (3, "두 손 짚어야 가능", .warning),
+        (4, "못 일어남", .danger)
+    ]
 
     var body: some View {
         PivotCard {
@@ -1974,31 +1858,34 @@ struct STSCheckCard: View {
                     PivotIcon(systemName: "figure.stand", color: .brand, bgColor: .brandBg, size: 40)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("의자 일어나기 (STS)").font(.system(size: 15, weight: .semibold)).foregroundColor(.textPrimary)
-                        Text("도움 없이 의자에서 혼자 일어날 수 있나요?")
+                        Text("의자에서 일어날 때 어떻게 하시나요?")
                             .font(.system(size: 13)).foregroundColor(.textSecondary)
                     }
                     Spacer()
                 }
-                HStack(spacing: 10) {
-                    stsButton(label: "가능", value: true)
-                    stsButton(label: "불가능", value: false)
+                VStack(spacing: 8) {
+                    ForEach(options, id: \.0) { value, label, color in
+                        let selected = stsScore == value
+                        Button { stsScore = value } label: {
+                            HStack(spacing: 10) {
+                                Circle()
+                                    .fill(selected ? color : Color.divider)
+                                    .frame(width: 16, height: 16)
+                                    .overlay(Circle().fill(.white).frame(width: 6, height: 6).opacity(selected ? 1 : 0))
+                                Text(label)
+                                    .font(.system(size: 14, weight: selected ? .semibold : .regular))
+                                    .foregroundColor(selected ? color : .textPrimary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14).padding(.vertical, 10)
+                            .background(selected ? color.opacity(0.1) : Color.surfaceBg)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
-    }
-
-    @ViewBuilder
-    func stsButton(label: String, value: Bool) -> some View {
-        let selected = stsCanStand == value
-        Button { stsCanStand = value } label: {
-            Text(label)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(selected ? .white : .textPrimary)
-                .frame(maxWidth: .infinity).padding(.vertical, 10)
-                .background(selected ? (value ? Color.brand : Color.danger) : Color.surfaceBg)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
     }
 }
 
@@ -2016,7 +1903,7 @@ struct PainCheckView: View {
     @State private var hasWoundDischarge = false
     @State private var painPersists = false
     @State private var hasFallInjury = false
-    @State private var stsCanStand = true
+    @State private var stsScore = 1
     @State private var showSavedBanner = false
 
     let painOptions: [(String, String, Color)] = [
@@ -2060,7 +1947,7 @@ struct PainCheckView: View {
                 SymptomSectionCard(hasWoundDischarge: $hasWoundDischarge, redness: $redness,
                                    swelling: $swelling, canWalk: $canWalk, fever: $fever,
                                    hasFallInjury: $hasFallInjury)
-                STSCheckCard(stsCanStand: $stsCanStand)
+                STSCheckCard(stsScore: $stsScore)
                 if isRedFlag { redFlagCard.transition(.scale.combined(with: .opacity)) }
                 saveButton
             }
@@ -2124,13 +2011,13 @@ struct PainCheckView: View {
             nrsScore: Int(nrsScore), painTypes: Array(selectedPainTypes),
             redness: redness, swelling: swelling, canWalk: canWalk, fever: fever, podDay: podDay,
             hasWoundDischarge: hasWoundDischarge, painPersists: painPersists,
-            hasFallInjury: hasFallInjury, stsCanStand: stsCanStand
+            hasFallInjury: hasFallInjury, stsScore: stsScore
         ))
         withAnimation(.spring(response: 0.4)) { showSavedBanner = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { withAnimation { showSavedBanner = false } }
         selectedPainTypes = []; nrsScore = 0
         redness = false; swelling = false; canWalk = true; fever = false
-        hasWoundDischarge = false; painPersists = false; hasFallInjury = false; stsCanStand = true
+        hasWoundDischarge = false; painPersists = false; hasFallInjury = false; stsScore = 1
     }
 }
 
@@ -2145,25 +2032,14 @@ struct ExerciseRecommendView: View {
 
     var currentPODPhase: ExerciseItem.PODPhase {
         switch profile?.phase ?? "" {
-        case "조기 회복기": return .early
-        case "중기 회복기": return .mid
-        case "후기 회복기": return .late
-        case "유지기":     return .maintenance
-        default:           return .early
+        case "급성기", "초기 회복기": return .early
+        case "중기 회복기":           return .mid
+        case "후기/유지기":           return .late
+        default:                      return .early
         }
     }
 
     var podDay: Int { profile?.podDay ?? 0 }
-
-    var endpoint: ExerciseItem.PODPhase { profile?.exerciseEndpoint ?? .maintenance }
-
-    var phaseOrder: [ExerciseItem.PODPhase] { ExerciseItem.PODPhase.allCases }
-
-    var isAboveEndpoint: Bool {
-        guard let selIdx = phaseOrder.firstIndex(of: selectedPhase),
-              let endIdx = phaseOrder.firstIndex(of: endpoint) else { return false }
-        return selIdx > endIdx
-    }
 
     var filtered: [ExerciseItem] { ExerciseItem.mockData.filter { $0.phase == selectedPhase } }
 
@@ -2179,9 +2055,7 @@ struct ExerciseRecommendView: View {
                             paceBanner(p)
                         }
                         phaseFilter
-                        if isAboveEndpoint {
-                            endpointNotice
-                        } else if !isCurrentPhase {
+                        if !isCurrentPhase {
                             phaseNotice
                         }
                         ForEach(filtered) { item in
@@ -2210,18 +2084,15 @@ struct ExerciseRecommendView: View {
         let paceColor: Color = p.pace == "적극" ? .success : p.pace == "보수" ? .warning : .brand
         let paceBg: Color = p.pace == "적극" ? .successBg : p.pace == "보수" ? .warningBg : .brandBg
         let paceIcon = p.pace == "적극" ? "hare.fill" : p.pace == "보수" ? "tortoise.fill" : "figure.walk"
+        let paceDesc = p.pace == "적극" ? "더 빠른 진도가 권장돼요" : p.pace == "보수" ? "천천히 안전하게 진행해요" : "권장 속도로 진행해요"
         return HStack(spacing: 10) {
             Image(systemName: paceIcon).foregroundColor(paceColor).font(.system(size: 16))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text("운동 속도").font(.system(size: 12)).foregroundColor(.textSecondary)
                     Text(p.pace).font(.system(size: 13, weight: .bold)).foregroundColor(paceColor)
-                    Text("•").foregroundColor(.textTertiary)
-                    Text("목표 단계").font(.system(size: 12)).foregroundColor(.textSecondary)
-                    Text(p.exerciseEndpoint.rawValue).font(.system(size: 13, weight: .bold)).foregroundColor(.brand)
                 }
-                Text("회복 목표 '\(p.recoveryGoal)' 기준 \(p.exerciseEndpoint.rawValue)까지 운동 권장")
-                    .font(.system(size: 11)).foregroundColor(.textSecondary)
+                Text(paceDesc).font(.system(size: 11)).foregroundColor(.textSecondary)
             }
             Spacer()
         }
@@ -2249,14 +2120,6 @@ struct ExerciseRecommendView: View {
         .padding(12).background(Color.brandBg).clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    var endpointNotice: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "lock.circle.fill").foregroundColor(.warning).font(.subheadline)
-            Text("회복 목표(\(profile?.recoveryGoal ?? ""))에 따라 \(endpoint.rawValue)까지 운동이 권장돼요.")
-                .font(.system(size: 13)).foregroundColor(.textSecondary).lineSpacing(3)
-        }
-        .padding(12).background(Color.warningBg).clipShape(RoundedRectangle(cornerRadius: 12))
-    }
 }
 
 struct ExercisePhaseButton: View {
@@ -2571,11 +2434,11 @@ struct MyRecordsView: View {
 
     var currentPhaseIndex: Int {
         switch profile?.phase ?? "" {
-        case "조기 회복기": return 0
-        case "중기 회복기": return 1
-        case "후기 회복기": return 2
-        case "유지기":     return 3
-        default:           return 0
+        case "급성기":      return 0
+        case "초기 회복기": return 1
+        case "중기 회복기": return 2
+        case "후기/유지기": return 3
+        default:            return 0
         }
     }
 
@@ -2683,19 +2546,19 @@ struct MyRecordsView: View {
 
     var recoveryPhaseCard: some View {
         let phases: [(label: String, color: Color)] = [
-            ("조기\n1-4주", .success),
-            ("중기\n4-8주", .brand),
-            ("후기\n8-12주", .exMain),
-            ("유지기\n12주+", .warning)
+            ("급성기\n0-2주", .danger),
+            ("초기\n2-6주", .warning),
+            ("중기\n6-12주", .brand),
+            ("후기/유지기\n12주+", .exMain)
         ]
         let connectorColors: [Color] = [
-            currentPhaseIndex > 0 ? .success : .divider,
-            currentPhaseIndex > 1 ? .brand   : .divider,
-            currentPhaseIndex > 2 ? .exMain  : .divider,
+            currentPhaseIndex > 0 ? .danger  : .divider,
+            currentPhaseIndex > 1 ? .warning : .divider,
+            currentPhaseIndex > 2 ? .brand   : .divider,
         ]
         return PivotCard {
             VStack(alignment: .leading, spacing: 16) {
-                SectionHeader(title: "회복 단계", subtitle: "임상 기준 (Mass General Brigham)")
+                SectionHeader(title: "회복 단계", subtitle: "마스터리스트 B-2 기준")
                 HStack(alignment: .top, spacing: 0) {
                     ForEach(0..<phases.count, id: \.self) { i in
                         let p = phases[i]
@@ -2793,10 +2656,8 @@ struct ProfileView: View {
                         profileCard
                         bodyInfoSection
                         rehabInfoSection
-                        rehabGoalSection
                         legInfoSection
                         clinicalInfoSection
-                        livingEnvSection
                         appInfoSection
                     }
                     .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 36)
@@ -2928,57 +2789,6 @@ struct ProfileView: View {
                 Divider()
                 InfoRow(icon: "cane.and.walking.stick", color: .success, title: "현재 보조기구",
                         value: profile?.currentAid ?? "-")
-                Divider()
-                let falls = profile?.fallHistoryCount ?? 0
-                InfoRow(icon: "exclamationmark.triangle.fill", color: falls > 0 ? .danger : .textTertiary,
-                        title: "낙상 이력",
-                        value: falls > 0 ? "\(falls)회" : "없음")
-            }
-        }
-    }
-
-    var rehabGoalSection: some View {
-        PivotCard {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("회복 목표").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
-                let goal = profile?.recoveryGoal ?? "-"
-                let goalIcon: String = {
-                    switch goal {
-                    case "집안보행":   return "house.fill"
-                    case "동네외출":   return "figure.walk"
-                    case "가벼운운동": return "figure.hiking"
-                    case "적극여가":   return "figure.golf"
-                    default:          return "target"
-                    }
-                }()
-                InfoRow(icon: goalIcon, color: .brand, title: "목표", value: goal)
-            }
-        }
-    }
-
-    var livingEnvSection: some View {
-        PivotCard {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("거주 환경").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
-                let bed = profile?.hasBed ?? true
-                InfoRow(icon: "bed.double.fill", color: bed ? .brand : .textTertiary,
-                        title: "침대", value: bed ? "있음" : "없음 (바닥)")
-                Divider()
-                let toilet = profile?.hasHighToilet ?? false
-                InfoRow(icon: "toilet.fill", color: toilet ? .success : .textTertiary,
-                        title: "높은 변기", value: toilet ? "있음" : "없음")
-                Divider()
-                let stairs = profile?.hasStairs ?? false
-                InfoRow(icon: "stairs", color: stairs ? .warning : .textTertiary,
-                        title: "계단", value: stairs ? "있음" : "없음")
-                if stairs {
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle.fill").foregroundColor(.warning)
-                        Text("계단이 있는 경우 후기 회복기(POD 8주+)부터 계단 훈련이 권장됩니다.")
-                            .font(.system(size: 12)).foregroundColor(.textSecondary).lineSpacing(3)
-                    }
-                    .padding(10).background(Color.warningBg).clipShape(RoundedRectangle(cornerRadius: 8))
-                }
             }
         }
     }
@@ -3001,10 +2811,9 @@ struct EditProfileView: View {
     @Bindable var profile: PatientProfile
     @Environment(\.dismiss) private var dismiss
 
-    let activityOptions = ["비활동적", "보통", "활동적", "매우 활동적"]
-    let contralateralOptions = ["정상", "이상 있음", "수술 예정"]
+    let activityOptions = ["거의 누워·앉아", "집안일 수준", "동네 산책", "정기적 운동"]
+    let contralateralOptions = ["괜찮아요", "가끔 불편함", "자주 아픔"]
     let aidOptions = ["없음", "지팡이", "목발", "워커"]
-    let recoveryGoalOptions = ["집안보행", "동네외출", "가벼운운동", "적극여가"]
 
     @State private var heightText = ""
     @State private var weightText = ""
@@ -3031,6 +2840,7 @@ struct EditProfileView: View {
                             Picker("수술 측", selection: $profile.operatedSide) {
                                 Text("우측").tag("우측")
                                 Text("좌측").tag("좌측")
+                                Text("양측").tag("양측")
                             }
                             .pickerStyle(.segmented)
                         }
@@ -3086,47 +2896,8 @@ struct EditProfileView: View {
                             }
                             .pickerStyle(.menu).foregroundColor(.brand)
                         }
-                        Divider().padding(.horizontal, -4)
-                        editField(label: "낙상 이력") {
-                            HStack(spacing: 16) {
-                                Button { if profile.fallHistoryCount > 0 { profile.fallHistoryCount -= 1 } } label: {
-                                    Image(systemName: "minus.circle.fill")
-                                        .font(.system(size: 22)).foregroundColor(profile.fallHistoryCount > 0 ? .brand : .textTertiary)
-                                }
-                                .buttonStyle(.plain)
-                                Text("\(profile.fallHistoryCount)회")
-                                    .font(.system(size: 16, weight: .semibold)).foregroundColor(.textPrimary)
-                                Button { profile.fallHistoryCount += 1 } label: {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 22)).foregroundColor(.brand)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
                     }
 
-                    editSection(title: "회복 목표") {
-                        editField(label: "목표") {
-                            Picker("회복 목표", selection: $profile.recoveryGoal) {
-                                ForEach(recoveryGoalOptions, id: \.self) { Text($0).tag($0) }
-                            }
-                            .pickerStyle(.menu).foregroundColor(.brand)
-                        }
-                    }
-
-                    editSection(title: "거주 환경") {
-                        editField(label: "침대 사용") {
-                            Toggle("", isOn: $profile.hasBed).tint(.brand)
-                        }
-                        Divider().padding(.horizontal, -4)
-                        editField(label: "높은 변기(좌변기)") {
-                            Toggle("", isOn: $profile.hasHighToilet).tint(.brand)
-                        }
-                        Divider().padding(.horizontal, -4)
-                        editField(label: "집에 계단 있음") {
-                            Toggle("", isOn: $profile.hasStairs).tint(.brand)
-                        }
-                    }
                 }
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 40)
             }

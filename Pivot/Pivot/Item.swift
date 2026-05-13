@@ -9,15 +9,15 @@ final class PainRecord {
     var date: Date
     var nrsScore: Int
     var painTypes: [String]
-    var redness: Bool         // 발적 + 움직이기 어려움 (combined)
+    var redness: Bool         // 발적 + 움직이기 어려움 (Red Flag 조건)
     var swelling: Bool        // 부종 (정보 수집용)
     var canWalk: Bool         // 보행 가능 (정보 수집용)
-    var fever: Bool           // 발열 (정보 수집용)
+    var fever: Bool           // 수술 부위 열감 (정보 수집용)
     var podDay: Int
-    var hasWoundDischarge: Bool  // 창상 진물/고름
-    var painPersists: Bool       // 통증 NRS 7+ → 30분 이상 지속
-    var hasFallInjury: Bool      // 낙상 후 출혈/불편
-    var stsCanStand: Bool        // STS: 의자에서 혼자 일어날 수 있는지 (Box 1 #10)
+    var hasWoundDischarge: Bool  // 창상 진물/고름 (Red Flag 조건)
+    var painPersists: Bool       // 수집용 (Red Flag 조건 아님)
+    var hasFallInjury: Bool      // 낙상 후 출혈/불편 (Red Flag 조건)
+    var stsScore: Int            // STS: 1=도움없이 2=한손짚 3=두손짚 4=못일어남 (Box 1 #4)
 
     init(
         date: Date = .now,
@@ -31,7 +31,7 @@ final class PainRecord {
         hasWoundDischarge: Bool = false,
         painPersists: Bool = false,
         hasFallInjury: Bool = false,
-        stsCanStand: Bool = true
+        stsScore: Int = 1
     ) {
         self.id = UUID()
         self.date = date
@@ -45,15 +45,15 @@ final class PainRecord {
         self.hasWoundDischarge = hasWoundDischarge
         self.painPersists = painPersists
         self.hasFallInjury = hasFallInjury
-        self.stsCanStand = stsCanStand
+        self.stsScore = stsScore
     }
 
-    // 운동 전면 차단 조건 (가드레일) — 하나라도 해당 시 운동 중단 + 외래 권고
+    // 운동 전면 차단 조건 — 하나라도 해당 시 외래 권고 (NRS ≥ 6, 2026.05.11 확정)
     var isRedFlag: Bool {
-        hasWoundDischarge ||                        // 창상 진물/고름
-        redness ||                                  // 발적 + 움직이기 어려움
-        nrsScore >= 6 ||                            // NRS 6+ (보수적 기준, 회의 확정)
-        hasFallInjury                               // 낙상 후 출혈/불편
+        hasWoundDischarge ||
+        redness ||
+        nrsScore >= 6 ||
+        hasFallInjury
     }
 }
 
@@ -94,20 +94,15 @@ final class PatientProfile {
     var id: UUID
     var patientCode: String
     var surgeryDate: Date
-    var operatedSide: String           // "우측" / "좌측"
+    var operatedSide: String           // "우측" / "좌측" / "양측"
     var legLengthDifferenceMM: Double  // 다리 길이 차이 (mm)
     var useInsole: Bool                // 깔창 착용 여부
-    var age: Int                       // 나이
-    var weightKg: Double               // 몸무게 (kg)
-    var heightCm: Double               // 키 (cm)
-    var preSurgeryActivity: String     // "비활동적" / "보통" / "활동적" / "매우 활동적"
-    var contralateralLegStatus: String // "정상" / "이상 있음" / "수술 예정"
+    var age: Int
+    var weightKg: Double
+    var heightCm: Double
+    var preSurgeryActivity: String     // "거의 누워·앉아" / "집안일 수준" / "동네 산책" / "정기적 운동"
+    var contralateralLegStatus: String // "괜찮아요" / "가끔 불편함" / "자주 아픔"
     var currentAid: String             // "없음" / "지팡이" / "목발" / "워커"
-    var fallHistoryCount: Int          // 낙상 이력 횟수
-    var recoveryGoal: String           // Box 1 #8: "집안보행" / "동네외출" / "가벼운운동" / "적극여가"
-    var hasBed: Bool                   // Box 1 #11: 침대 있음
-    var hasHighToilet: Bool            // Box 1 #11: 높은 변기(좌변기) 있음
-    var hasStairs: Bool                // Box 1 #11: 집에 계단 있음
 
     var bmi: Double {
         guard heightCm > 0 else { return 0 }
@@ -119,22 +114,23 @@ final class PatientProfile {
         max(0, Calendar.current.dateComponents([.day], from: surgeryDate, to: .now).day ?? 0)
     }
 
-    // 임상 기준 POD 단계 (Mass General Brigham 프로토콜)
-    // 급성기 0-1w: 입원 중 → 앱 운동 차단
-    // 조기 1-4w, 중기 4-8w, 후기 8-12w, 유지기 12w+
+    // 임상 기준 4단계 (마스터리스트 B-2 확정)
+    // 급성기 0-14일: 병원 입원 중, 앱 운동 차단
+    // 초기 회복기 15-42일: 2주~6주 외래 방문 시기
+    // 중기 회복기 43-84일: 핵심 대상, 일상 복귀 시작
+    // 후기/유지기 85일+: 최우선 대상, 장기 관리
     var phase: String {
         switch podDay {
-        case 0...7:   return "급성기"
-        case 8...28:  return "조기 회복기"
-        case 29...56: return "중기 회복기"
-        case 57...84: return "후기 회복기"
-        default:      return "유지기"
+        case 0...14:  return "급성기"
+        case 15...42: return "초기 회복기"
+        case 43...84: return "중기 회복기"
+        default:      return "후기/유지기"
         }
     }
 
-    // 외래 추적관찰 일정: 4w, 8w, 12w, 52w, 104w
+    // 외래 추적관찰 일정: 2w, 4w, 8w, 12w, 52w, 104w
     var followUpDates: [FollowUpEntry] {
-        [4, 8, 12, 52, 104].compactMap { week in
+        [2, 4, 8, 12, 52, 104].compactMap { week in
             guard let d = Calendar.current.date(byAdding: .weekOfYear, value: week, to: surgeryDate)
             else { return nil }
             return FollowUpEntry(week: week, date: d)
@@ -145,54 +141,23 @@ final class PatientProfile {
         followUpDates.first { $0.date > .now }
     }
 
-    // Box 2 Step 4 – Pace (보수/표준/적극)
+    // 가드레일 기반 Pace (표시용 — 운동 차단은 Red Flag로만 결정)
     var pace: String {
         var score = 0
         if age < 65 { score -= 1 } else if age >= 80 { score += 1 }
-        if fallHistoryCount == 1 { score += 1 } else if fallHistoryCount >= 2 { score += 2 }
         switch preSurgeryActivity {
-        case "비활동적": score += 1
-        case "활동적", "매우 활동적": score -= 1
+        case "거의 누워·앉아": score += 1
+        case "동네 산책", "정기적 운동": score -= 1
         default: break
         }
-        if contralateralLegStatus != "정상" { score += 1 }
+        if contralateralLegStatus != "괜찮아요" { score += 1 }
+        if operatedSide == "양측" { score += 1 }
         if score <= -1 { return "적극" }
         if score <= 1  { return "표준" }
         return "보수"
     }
 
-    // Box 2 Step 4 – Exercise endpoint (운동 카탈로그 상한선)
-    var exerciseEndpoint: ExerciseItem.PODPhase {
-        switch recoveryGoal {
-        case "집안보행": return .mid
-        case "동네외출": return .late
-        default:        return .maintenance
-        }
-    }
-
-    // Box 2 Step 5 – Lifestyle flags (거주환경 + 단계별 금기 자세)
-    var lifestyleFlags: [String] {
-        var flags: [String] = []
-        if podDay <= 56 {
-            flags.append("무릎 아래 쿠션·베개 금지 — 굴곡 구축 위험")
-        }
-        if !hasBed {
-            flags.append("바닥 생활 시 일어날 때 한쪽 무릎 집중 체중 금지")
-        }
-        if !hasHighToilet {
-            flags.append("낮은 변기 사용 시 과굴곡 주의 — 보조 기구 권장")
-        }
-        if hasStairs {
-            if podDay < 57 {
-                flags.append("계단 사용 삼가기 — 후기 회복기 이후부터 가능")
-            } else {
-                flags.append("계단 이용 시 난간 잡고 한 칸씩 천천히")
-            }
-        }
-        return flags
-    }
-
-    // Box 2 Step 6 – Weight-bearing level & gap analysis
+    // Box 2 Step 6 — Weight-bearing level & gap analysis
     var wbLevel: String {
         switch currentAid {
         case "워커":   return "NWB"
@@ -203,15 +168,12 @@ final class PatientProfile {
     }
 
     private var expectedWbLevel: String {
-        if podDay <= 7  { return "NWB"  }
-        if podDay <= 21 { return "PWB"  }
+        if podDay <= 14 { return "NWB"  }
+        if podDay <= 28 { return "PWB"  }
         if podDay <= 42 { return "WBAT" }
         return "FWB"
     }
 
-    // "positive" = 예상보다 빠른 회복 (보조기 적게 사용)
-    // "negative" = 예상보다 느린 회복 (보조기 과의존)
-    // "none" = 프로토콜 부합
     var gapAnalysis: String {
         let order = ["NWB", "PWB", "WBAT", "FWB"]
         guard let actualIdx   = order.firstIndex(of: wbLevel),
@@ -231,14 +193,9 @@ final class PatientProfile {
         age: Int = 0,
         weightKg: Double = 0,
         heightCm: Double = 0,
-        preSurgeryActivity: String = "보통",
-        contralateralLegStatus: String = "정상",
-        currentAid: String = "없음",
-        fallHistoryCount: Int = 0,
-        recoveryGoal: String = "동네외출",
-        hasBed: Bool = true,
-        hasHighToilet: Bool = false,
-        hasStairs: Bool = false
+        preSurgeryActivity: String = "집안일 수준",
+        contralateralLegStatus: String = "괜찮아요",
+        currentAid: String = "없음"
     ) {
         self.id = UUID()
         self.patientCode = patientCode
@@ -252,11 +209,6 @@ final class PatientProfile {
         self.preSurgeryActivity = preSurgeryActivity
         self.contralateralLegStatus = contralateralLegStatus
         self.currentAid = currentAid
-        self.fallHistoryCount = fallHistoryCount
-        self.recoveryGoal = recoveryGoal
-        self.hasBed = hasBed
-        self.hasHighToilet = hasHighToilet
-        self.hasStairs = hasStairs
     }
 }
 
@@ -267,10 +219,10 @@ final class ExerciseLog {
     var id: UUID
     var date: Date
     var exerciseTitle: String
-    var contractionSeconds: Int  // 수축 유지 시간 (초)
+    var contractionSeconds: Int
     var completedSets: Int
     var targetSets: Int
-    var speedRating: String      // "적절" / "빠름" / "느림"
+    var speedRating: String
     var podDay: Int
 
     init(
@@ -310,22 +262,22 @@ struct ExerciseItem: Identifiable {
     let durationMin: Int
     let phase: PODPhase
     let description: String
-    let targetContractionSec: Int  // 수축 유지 목표 시간 (0 = 해당 없음)
+    let targetContractionSec: Int
     let targetSets: Int
-    let speedGuide: String         // 운동 속도 가이드 문구
+    let speedGuide: String
 
     enum PODPhase: String, CaseIterable {
-        case early       = "조기 회복기"
-        case mid         = "중기 회복기"
-        case late        = "후기 회복기"
-        case maintenance = "유지기"
+        case early       = "초기 회복기"   // POD 15-42일 (1-6주)
+        case mid         = "중기 회복기"   // POD 43-84일 (6-12주)
+        case late        = "후기 회복기"   // POD 85일+ 전반
+        case maintenance = "유지기"        // POD 85일+ 심화
     }
 
     // MARK: - 운동 카탈로그 (24개, 4단계)
 
     static let mockData: [ExerciseItem] = earlyExercises + midExercises + lateExercises + maintenanceExercises
 
-    // 조기 회복기 (1–4주) — 부종 감소, ROM 회복, 기초 근력 활성화
+    // 초기 회복기 (POD 15-42일, 1-6주) — 부종 감소, ROM 회복, 기초 근력 활성화
     static let earlyExercises: [ExerciseItem] = [
         ExerciseItem(
             title: "발목 펌프 운동",
@@ -377,7 +329,7 @@ struct ExerciseItem: Identifiable {
         ),
     ]
 
-    // 중기 회복기 (4–8주) — 근력 강화, ROM 90° 달성, 체중 부하 운동 시작
+    // 중기 회복기 (POD 43-84일, 6-12주) — 근력 강화, ROM 90° 달성, 체중 부하 운동
     static let midExercises: [ExerciseItem] = [
         ExerciseItem(
             title: "직다리 들기 (SLR)",
@@ -431,13 +383,13 @@ struct ExerciseItem: Identifiable {
             title: "쿼드 세팅 강화 (Quad Sets+)",
             sfSymbol: "bolt.fill",
             durationMin: 10, phase: .mid,
-            description: "수건을 무릎 아래 깔고 무릎을 강하게 눌러 대퇴사두근을 최대로 수축해요. 조기보다 강도를 높여요.",
+            description: "수건을 무릎 아래 깔고 무릎을 강하게 눌러 대퇴사두근을 최대로 수축해요. 초기보다 강도를 높여요.",
             targetContractionSec: 7, targetSets: 15,
             speedGuide: "강하게 수축 → 7초 유지 → 이완 3초"
         ),
     ]
 
-    // 후기 회복기 (8–12주) — 기능적 근력, 균형, 계단/보행 훈련
+    // 후기 회복기 (POD 85일+ 전반) — 기능적 근력, 균형, 계단/보행 훈련
     static let lateExercises: [ExerciseItem] = [
         ExerciseItem(
             title: "미니 스쿼트",
@@ -489,7 +441,7 @@ struct ExerciseItem: Identifiable {
         ),
     ]
 
-    // 유지기 (12주+) — 일상·사회 복귀, 유산소, 고급 강화
+    // 유지기 (POD 85일+ 심화) — 일상·사회 복귀, 유산소, 고급 강화
     static let maintenanceExercises: [ExerciseItem] = [
         ExerciseItem(
             title: "고정 자전거 타기",
