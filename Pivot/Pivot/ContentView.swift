@@ -1222,8 +1222,10 @@ struct ROMCameraView: View {
     @State private var anklePlantarflexion: Double = 35
     @State private var kneeExtension: Double = 0
     @State private var showSaved = false
+    @State private var showCameraMode = false
 
     var podDay: Int { profiles.first?.podDay ?? 0 }
+    var operatedSide: OperatedSide { profiles.first?.operatedSide.asOperatedSide ?? .right }
     var kneeFlexion: Double { max(0, flexionAngle - referenceAngle) }
 
     var body: some View {
@@ -1247,6 +1249,9 @@ struct ROMCameraView: View {
                                    kneeExtension: $kneeExtension)
                     .presentationDetents([.large])
             }
+            .fullScreenCover(isPresented: $showCameraMode) {
+                CameraVisionROMView(side: operatedSide)
+            }
         }
     }
 
@@ -1259,6 +1264,17 @@ struct ROMCameraView: View {
                 Text(stepSubtitle).font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
             }
             Spacer()
+            if step == 0 {
+                Button { showCameraMode = true } label: {
+                    Label("카메라", systemImage: "camera.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.brand)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(Color.brand.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
             if step == 1 || step == 2 {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("현재 각도").font(.caption2).foregroundColor(.white.opacity(0.45))
