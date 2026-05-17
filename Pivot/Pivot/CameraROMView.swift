@@ -185,6 +185,24 @@ struct CameraVisionROMView: View {
             CameraPreviewView(session: vm.session).ignoresSafeArea()
             JointOverlayView(result: vm.romResult).ignoresSafeArea()
 
+            // 시뮬레이터 또는 카메라 미지원 기기 안내
+            if !vm.isRunning && !vm.permissionDenied {
+                VStack(spacing: 16) {
+                    Image(systemName: "camera.slash.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.white.opacity(0.4))
+                    Text("카메라를 시작할 수 없어요")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                    Text("실제 아이폰에서 실행해주세요.\n시뮬레이터에서는 카메라가 지원되지 않아요.")
+                        .font(.system(size: 13))
+                        .foregroundColor(.white.opacity(0.45))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                }
+                .padding(32)
+            }
+
             VStack(spacing: 0) {
                 topBar.padding(.top, 16).padding(.horizontal, 20)
                 Spacer()

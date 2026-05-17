@@ -213,7 +213,7 @@ struct MainTabView: View {
         TabView(selection: $selectedTab) {
             HomeView(selectedTab: $selectedTab)
                 .tabItem { Label("홈", systemImage: selectedTab == 0 ? "house.fill" : "house") }.tag(0)
-            ROMCameraView()
+            ROMTabView()
                 .tabItem { Label("ROM", systemImage: "camera.viewfinder") }.tag(1)
             MyRecordsView()
                 .tabItem { Label("기록", systemImage: "chart.line.uptrend.xyaxis") }.tag(2)
@@ -1214,9 +1214,100 @@ final class ROMMotionManager: ObservableObject {
 
 // MARK: - ROMCameraView (가속도계 기반 ROM 측정)
 
+// MARK: - ROMTabView (측정 방법 선택 화면)
+
+struct ROMTabView: View {
+    @State private var showCamera = false
+    @State private var showSensor = false
+    @Query private var profiles: [PatientProfile]
+
+    var operatedSide: OperatedSide { profiles.first?.operatedSide.asOperatedSide ?? .right }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Color(hex: "0D1117"), Color(hex: "1A1F2E")],
+                           startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("ROM 측정").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                    Text("무릎 굴곡 각도를 측정해요").font(.system(size: 14)).foregroundColor(.white.opacity(0.5))
+                }
+                .padding(.top, 28).padding(.horizontal, 24)
+
+                Spacer()
+
+                VStack(spacing: 14) {
+                    // 카메라 (주요 방법)
+                    Button { showCamera = true } label: {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle().fill(Color.brand.opacity(0.18)).frame(width: 58, height: 58)
+                                Image(systemName: "camera.fill").font(.system(size: 24)).foregroundColor(.brand)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Text("카메라로 측정").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
+                                    Text("추천").font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.brand)
+                                        .padding(.horizontal, 7).padding(.vertical, 2)
+                                        .background(Color.brand.opacity(0.18))
+                                        .clipShape(Capsule())
+                                }
+                                Text("AI가 관절을 직접 인식해 각도를 측정해요")
+                                    .font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.3))
+                        }
+                        .padding(20)
+                        .background(Color.brand.opacity(0.1))
+                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.brand.opacity(0.35), lineWidth: 1))
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    }
+                    .buttonStyle(.plain)
+
+                    // 센서 (보조 방법)
+                    Button { showSensor = true } label: {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle().fill(Color.white.opacity(0.07)).frame(width: 58, height: 58)
+                                Image(systemName: "iphone.homebutton.landscape")
+                                    .font(.system(size: 24)).foregroundColor(.white.opacity(0.7))
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("센서로 측정").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
+                                Text("폰을 정강이에 대고 기울기로 측정해요")
+                                    .font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.3))
+                        }
+                        .padding(20)
+                        .background(Color.white.opacity(0.05))
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 20)
+
+                Spacer()
+            }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraVisionROMView(side: operatedSide)
+        }
+        .fullScreenCover(isPresented: $showSensor) {
+            ROMCameraView()
+        }
+    }
+}
+
+// MARK: - ROMCameraView (센서 기반 측정)
+
 struct ROMCameraView: View {
     @StateObject private var motion = ROMMotionManager()
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Query private var profiles: [PatientProfile]
 
     @State private var step = 0          // 0=intro 1=reference 2=flexion 3=result
@@ -1227,36 +1318,28 @@ struct ROMCameraView: View {
     @State private var anklePlantarflexion: Double = 35
     @State private var kneeExtension: Double = 0
     @State private var showSaved = false
-    @State private var showCameraMode = false
 
     var podDay: Int { profiles.first?.podDay ?? 0 }
-    var operatedSide: OperatedSide { profiles.first?.operatedSide.asOperatedSide ?? .right }
     var kneeFlexion: Double { max(0, flexionAngle - referenceAngle) }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                LinearGradient(colors: [Color(hex: "0D1117"), Color(hex: "1A1F2E")],
-                               startPoint: .top, endPoint: .bottom).ignoresSafeArea()
-                VStack(spacing: 0) {
-                    topBar.padding(.top, 16).padding(.horizontal, 20)
-                    Spacer()
-                    stepContent.padding(.horizontal, 28)
-                    Spacer()
-                    bottomBar.padding(.horizontal, 20).padding(.bottom, 36)
-                }
+        ZStack {
+            LinearGradient(colors: [Color(hex: "0D1117"), Color(hex: "1A1F2E")],
+                           startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+            VStack(spacing: 0) {
+                topBar.padding(.top, 16).padding(.horizontal, 20)
+                Spacer()
+                stepContent.padding(.horizontal, 28)
+                Spacer()
+                bottomBar.padding(.horizontal, 20).padding(.bottom, 36)
             }
-            .navigationBarHidden(true)
-            .onAppear { motion.start() }
-            .onDisappear { motion.stop() }
-            .sheet(isPresented: $showAnkleInput) {
-                AnkleROMInputSheet(dorsiflexion: $ankleDorsiflexion, plantarflexion: $anklePlantarflexion,
-                                   kneeExtension: $kneeExtension)
-                    .presentationDetents([.large])
-            }
-            .fullScreenCover(isPresented: $showCameraMode) {
-                CameraVisionROMView(side: operatedSide)
-            }
+        }
+        .onAppear { motion.start() }
+        .onDisappear { motion.stop() }
+        .sheet(isPresented: $showAnkleInput) {
+            AnkleROMInputSheet(dorsiflexion: $ankleDorsiflexion, plantarflexion: $anklePlantarflexion,
+                               kneeExtension: $kneeExtension)
+                .presentationDetents([.large])
         }
     }
 
@@ -1264,21 +1347,19 @@ struct ROMCameraView: View {
 
     var topBar: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("ROM 측정").font(.system(size: 22, weight: .bold)).foregroundColor(.white)
-                Text(stepSubtitle).font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(10)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Circle())
             }
+            .buttonStyle(.plain)
             Spacer()
-            if step == 0 {
-                Button { showCameraMode = true } label: {
-                    Label("카메라", systemImage: "camera.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.brand)
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(Color.brand.opacity(0.15))
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("센서 ROM 측정").font(.system(size: 16, weight: .bold)).foregroundColor(.white)
+                Text(stepSubtitle).font(.system(size: 12)).foregroundColor(.white.opacity(0.55))
             }
             if step == 1 || step == 2 {
                 VStack(alignment: .trailing, spacing: 2) {
