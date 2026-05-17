@@ -103,6 +103,8 @@ final class PatientProfile {
     var preSurgeryActivity: String     // "거의 누워·앉아" / "집안일 수준" / "동네 산책" / "정기적 운동"
     var contralateralLegStatus: String // "괜찮아요" / "가끔 불편함" / "자주 아픔"
     var currentAid: String             // "없음" / "지팡이" / "목발" / "워커"
+    var serverPatientId: String?       // POST /patient 응답 UUID
+    var serverSessionId: String?       // POST /session 응답 UUID (현재 세션)
 
     var bmi: Double {
         guard heightCm > 0 else { return 0 }

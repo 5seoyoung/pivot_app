@@ -277,6 +277,11 @@ struct OnboardingView: View {
             currentAid: currentAid
         )
         modelContext.insert(profile)
+        Task {
+            if let pid = try? await APIService.shared.registerPatient(profile) {
+                profile.serverPatientId = pid
+            }
+        }
         dismiss()
     }
 
@@ -1921,6 +1926,8 @@ struct PainCheckView: View {
     @State private var hasFallInjury = false
     @State private var stsScore = 1
     @State private var showSavedBanner = false
+    @State private var serverBlocked = false
+    @State private var serverBlockReason: String? = nil
 
     let painOptions: [(String, String, Color)] = [
         ("찌릿함",   "bolt.fill",             Color(hex: "F59E0B")),
@@ -2023,14 +2030,34 @@ struct PainCheckView: View {
     }
 
     func savePainRecord() {
-        modelContext.insert(PainRecord(
+        let record = PainRecord(
             nrsScore: Int(nrsScore), painTypes: Array(selectedPainTypes),
             redness: redness, swelling: swelling, canWalk: canWalk, fever: fever, podDay: podDay,
             hasWoundDischarge: hasWoundDischarge, painPersists: painPersists,
             hasFallInjury: hasFallInjury, stsScore: stsScore
-        ))
+        )
+        modelContext.insert(record)
         withAnimation(.spring(response: 0.4)) { showSavedBanner = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { withAnimation { showSavedBanner = false } }
+
+        // 서버 세션 생성 + Red Flag 전송
+        let profile = profiles.first
+        Task {
+            guard let profile,
+                  let pid = profile.serverPatientId else { return }
+            do {
+                let sid = try await APIService.shared.createSession(patientId: pid, stsScore: stsScore)
+                profile.serverSessionId = sid
+                let result = try await APIService.shared.submitRedFlag(
+                    sessionId: sid, record: record, wbLevel: profile.wbLevel
+                )
+                serverBlocked = result.isBlocked
+                serverBlockReason = result.blockReason
+            } catch {
+                // 서버 오류 시 로컬 판단(isRedFlag)으로 계속 진행
+            }
+        }
+
         selectedPainTypes = []; nrsScore = 0
         redness = false; swelling = false; canWalk = true; fever = false
         hasWoundDischarge = false; painPersists = false; hasFallInjury = false; stsScore = 1
@@ -2043,6 +2070,7 @@ struct ExerciseRecommendView: View {
     @Query private var profiles: [PatientProfile]
     @State private var selectedPhase: ExerciseItem.PODPhase = .mid
     @State private var didSetInitialPhase = false
+    @State private var serverVideos: [APIService.VideoResult] = []
 
     var profile: PatientProfile? { profiles.first }
 
@@ -2070,6 +2098,9 @@ struct ExerciseRecommendView: View {
                         if let p = profile {
                             paceBanner(p)
                         }
+                        if !serverVideos.isEmpty {
+                            serverVideoSection
+                        }
                         phaseFilter
                         if !isCurrentPhase {
                             phaseNotice
@@ -2093,7 +2124,51 @@ struct ExerciseRecommendView: View {
                 selectedPhase = currentPODPhase
                 didSetInitialPhase = true
             }
+            Task { await fetchServerVideos() }
         }
+    }
+
+    func fetchServerVideos() async {
+        guard let sid = profile?.serverSessionId else { return }
+        if let videos = try? await APIService.shared.getRecommendations(sessionId: sid) {
+            serverVideos = videos
+        }
+    }
+
+    @ViewBuilder
+    var serverVideoSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles").foregroundColor(.brand).font(.system(size: 13))
+                Text("AI 추천 영상").font(.system(size: 14, weight: .bold)).foregroundColor(.brand)
+            }
+            ForEach(serverVideos) { video in
+                if let urlStr = video.url, let url = URL(string: urlStr) {
+                    Link(destination: url) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "play.rectangle.fill")
+                                .foregroundColor(.brand).font(.system(size: 18))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(video.title)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                    .lineLimit(2)
+                                Text("YouTube에서 보기")
+                                    .font(.caption2).foregroundColor(.textSecondary)
+                            }
+                            Spacer()
+                            Image(systemName: "arrow.up.right").font(.caption).foregroundColor(.textTertiary)
+                        }
+                        .padding(12)
+                        .background(Color.brandBg)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(Color.surfaceBg)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     func paceBanner(_ p: PatientProfile) -> some View {
