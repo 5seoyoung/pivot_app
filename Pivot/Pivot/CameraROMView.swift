@@ -192,11 +192,11 @@ struct CameraVisionROMView: View {
                         .font(.system(size: 48))
                         .foregroundColor(.white.opacity(0.4))
                     Text("카메라를 시작할 수 없어요")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white.opacity(0.8))
                     Text("실제 아이폰에서 실행해주세요.\n시뮬레이터에서는 카메라가 지원되지 않아요.")
-                        .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.45))
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(0.80))
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
                 }
@@ -231,7 +231,7 @@ struct CameraVisionROMView: View {
         HStack(alignment: .center) {
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(10)
                     .background(.ultraThinMaterial)
@@ -243,9 +243,9 @@ struct CameraVisionROMView: View {
 
             VStack(spacing: 2) {
                 Text("카메라 ROM 측정")
-                    .font(.system(size: 15, weight: .bold)).foregroundColor(.white)
+                    .font(.system(size: 18, weight: .bold)).foregroundColor(.white)
                 Text(vm.side.resolved == .right ? "우측 무릎" : "좌측 무릎")
-                    .font(.caption2).foregroundColor(.white.opacity(0.55))
+                    .font(.caption2).foregroundColor(.white.opacity(0.85))
             }
 
             Spacer()
@@ -256,9 +256,9 @@ struct CameraVisionROMView: View {
             } label: {
                 VStack(spacing: 2) {
                     Image(systemName: vm.isSupine ? "bed.double.fill" : "figure.stand")
-                        .font(.system(size: 14))
+                        .font(.system(size: 17))
                     Text(vm.isSupine ? "앙와위" : "직립")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                 }
                 .foregroundColor(vm.isSupine ? .brand : .white.opacity(0.6))
                 .padding(.horizontal, 12).padding(.vertical, 8)
@@ -280,14 +280,14 @@ struct CameraVisionROMView: View {
                     .foregroundColor(.brand)
                     .contentTransition(.numericText())
                     .animation(.easeOut(duration: 0.08), value: vm.romResult?.kneeFlexion)
-                Text("°").font(.system(size: 26)).foregroundColor(.brand.opacity(0.7))
+                Text("°").font(.system(size: 30)).foregroundColor(.brand.opacity(0.7))
 
                 Spacer()
 
                 if let conf = vm.romResult?.confidence {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(String(format: "%.0f%%", conf * 100))
-                            .font(.system(size: 16, weight: .bold)).foregroundColor(confidenceColor)
+                            .font(.system(size: 18, weight: .bold)).foregroundColor(confidenceColor)
                         Text("신뢰도").font(.caption2).foregroundColor(.white.opacity(0.4))
                     }
                 }
@@ -304,7 +304,7 @@ struct CameraVisionROMView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill").foregroundColor(.success)
                     Text("저장됨 — \(String(format: "%.1f", savedFlexion))°")
-                        .font(.system(size: 13, weight: .semibold)).foregroundColor(.success)
+                        .font(.system(size: 16, weight: .semibold)).foregroundColor(.success)
                 }
                 .padding(10)
                 .background(Color.success.opacity(0.15))
@@ -318,7 +318,7 @@ struct CameraVisionROMView: View {
                     showSaved = false
                 } label: {
                     Text("초기화")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white.opacity(0.8))
                         .padding(.horizontal, 22).padding(.vertical, 15)
                         .background(.ultraThinMaterial)
@@ -328,7 +328,7 @@ struct CameraVisionROMView: View {
 
                 Button { saveMax() } label: {
                     Text("최대값 저장")
-                        .font(.system(size: 15, weight: .bold)).foregroundColor(.white)
+                        .font(.system(size: 18, weight: .bold)).foregroundColor(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 15)
                         .background(Color.brand)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -346,8 +346,8 @@ struct CameraVisionROMView: View {
     @ViewBuilder
     func statChip(label: String, value: String, color: Color) -> some View {
         VStack(spacing: 3) {
-            Text(value).font(.system(size: 16, weight: .bold)).foregroundColor(color)
-            Text(label).font(.caption2).foregroundColor(.white.opacity(0.45))
+            Text(value).font(.system(size: 18, weight: .bold)).foregroundColor(color)
+            Text(label).font(.caption2).foregroundColor(.white.opacity(0.80))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)

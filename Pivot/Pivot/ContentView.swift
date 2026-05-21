@@ -21,24 +21,27 @@ extension Color {
         self.init(.sRGB, red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255, opacity: Double(a)/255)
     }
 
-    static let brand         = Color(hex: "5B7CF6")
-    static let brandBg       = Color(hex: "F0F2FF")
-    static let brandDeep     = Color(hex: "4A6BE0")
-    static let success       = Color(hex: "2ECC71")
-    static let successBg     = Color(hex: "E8F9F0")
-    static let warning       = Color(hex: "F59E0B")
-    static let warningBg     = Color(hex: "FFF3E0")
-    static let danger        = Color(hex: "E8697A")
-    static let dangerBg      = Color(hex: "FDEEF0")
+    // OKLCH 기반 고령자(60+) 최적화 컬러 시스템
+    // Primary: oklch(0.52 0.15 264) — L≤0.55 (WCAG AAA 7:1+ 보장)
+    static let brand         = Color(hex: "3A5BD6")   // oklch(0.52 0.15 264)
+    static let brandBg       = Color(hex: "E8ECFF")
+    static let brandDeep     = Color(hex: "2843B8")
+    static let success       = Color(hex: "0D7B3E")   // oklch(0.50 0.15 145)
+    static let successBg     = Color(hex: "DFF5E9")
+    static let warning       = Color(hex: "9B5C00")   // oklch(0.50 0.17 73)
+    static let warningBg     = Color(hex: "FFF0D5")
+    static let danger        = Color(hex: "C42535")   // oklch(0.48 0.17 15)
+    static let dangerBg      = Color(hex: "FCEAEA")
     static let appBg         = Color.white
-    static let surfaceBg     = Color(hex: "F8F8FB")
+    static let surfaceBg     = Color(hex: "F3F4FA")   // oklch(0.96 0.008 250)
     static let appCard       = Color.white
-    static let textPrimary   = Color(hex: "1C1C1E")
-    static let textSecondary = Color(hex: "8E8E93")
-    static let textTertiary  = Color(hex: "C7C7CC")
-    static let divider       = Color(hex: "F2F2F7")
-    static let exMain        = Color(hex: "8B72CF")
-    static let exLight       = Color(hex: "F0ECFA")
+    // Neutral 3단계 (chroma ≤0.01, H=250) — 옅은 회색 완전 제거
+    static let textPrimary   = Color(hex: "0D1018")   // oklch(0.15 0.01 250)
+    static let textSecondary = Color(hex: "2A2D3A")   // oklch(0.25 0.01 250)
+    static let textTertiary  = Color(hex: "454854")   // oklch(0.42 0.01 250) — 더 이상 옅게 X
+    static let divider       = Color(hex: "CDD0DC")   // oklch(0.84 0.008 250)
+    static let exMain        = Color(hex: "5243A8")   // oklch(0.50 0.18 295)
+    static let exLight       = Color(hex: "EDEAFA")
 }
 
 // MARK: - Toss-style Face Emoji
@@ -88,7 +91,7 @@ struct PainFaceView: View {
     }
 
     var normalEye: some View { Circle().fill(faceColor).frame(width: 7, height: 7) }
-    var xEye: some View { Text("×").font(.system(size: 11, weight: .black)).foregroundColor(faceColor) }
+    var xEye: some View { Text("×").font(.system(size: 15, weight: .black)).foregroundColor(faceColor) }
     var eyeWithTear: some View {
         VStack(spacing: 1) {
             Circle().fill(faceColor).frame(width: 7, height: 7)
@@ -122,11 +125,11 @@ struct PivotIcon: View {
                 .fill(LinearGradient(colors: [bgColor, bgColor.opacity(0.6)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
             Image(systemName: systemName)
-                .font(.system(size: size * 0.42, weight: .semibold))
+                .font(.system(size: size * 0.52, weight: .semibold))
                 .foregroundStyle(color)
         }
         .frame(width: size, height: size)
-        .shadow(color: color.opacity(0.18), radius: 8, x: 0, y: 3)
+        .shadow(color: color.opacity(0.25), radius: 10, x: 0, y: 4)
     }
 }
 
@@ -135,8 +138,8 @@ struct PivotIcon: View {
 struct SectionLabel: View {
     let text: String
     var body: some View {
-        Text(text).font(.system(size: 12, weight: .semibold))
-            .foregroundColor(.textSecondary).kerning(0.5).textCase(.uppercase)
+        Text(text).font(.system(size: 16, weight: .bold))
+            .foregroundColor(.textSecondary).kerning(0.3)
     }
 }
 
@@ -144,9 +147,9 @@ struct SectionHeader: View {
     let title: String
     let subtitle: String
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.system(size: 17, weight: .bold)).foregroundColor(.textPrimary)
-            Text(subtitle).font(.system(size: 14)).foregroundColor(.textSecondary)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title).font(.system(size: 22, weight: .bold)).foregroundColor(.textPrimary)
+            Text(subtitle).font(.system(size: 18, weight: .medium)).foregroundColor(.textSecondary)
         }
     }
 }
@@ -155,9 +158,10 @@ struct PivotCard<Content: View>: View {
     let content: () -> Content
     init(@ViewBuilder content: @escaping () -> Content) { self.content = content }
     var body: some View {
-        content().padding(20).background(Color.appCard)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 2)
+        content().padding(22).background(Color.appCard)
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .shadow(color: Color.brand.opacity(0.07), radius: 14, x: 0, y: 3)
+            .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 1)
     }
 }
 
@@ -168,8 +172,8 @@ struct SymptomToggleRow: View {
         HStack(spacing: 14) {
             PivotIcon(systemName: systemName, color: color, bgColor: color.opacity(0.12), size: 40)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 16, weight: .medium)).foregroundColor(.textPrimary)
-                Text(subtitle).font(.system(size: 13)).foregroundColor(.textSecondary)
+                Text(title).font(.system(size: 18, weight: .medium)).foregroundColor(.textPrimary)
+                Text(subtitle).font(.system(size: 16)).foregroundColor(.textSecondary)
             }
             Spacer()
             Toggle("", isOn: $isOn).tint(color).labelsHidden()
@@ -185,7 +189,7 @@ struct NRSDotRow: View {
             ForEach(0...10, id: \.self) { i in
                 ZStack {
                     RoundedRectangle(cornerRadius: 7).fill(dotBg(i)).frame(width: 26, height: 26)
-                    Text("\(i)").font(.system(size: 10, weight: .bold)).foregroundColor(dotFg(i))
+                    Text("\(i)").font(.system(size: 15, weight: .bold)).foregroundColor(dotFg(i))
                 }
             }
         }
@@ -208,6 +212,7 @@ struct MainTabView: View {
     @State private var selectedTab = 0
     @State private var showOnboarding = false
     @Query private var profiles: [PatientProfile]
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -221,8 +226,48 @@ struct MainTabView: View {
                 .tabItem { Label("내 정보", systemImage: selectedTab == 3 ? "person.fill" : "person") }.tag(3)
         }
         .tint(.brand)
-        .onAppear { if profiles.isEmpty { showOnboarding = true } }
+        .onAppear { if profiles.isEmpty { seedDemoData() } }
         .fullScreenCover(isPresented: $showOnboarding) { OnboardingView() }
+    }
+
+    private func seedDemoData() {
+        let cal = Calendar.current
+        let surgeryDate = cal.date(byAdding: .day, value: -45, to: .now) ?? .now
+
+        let profile = PatientProfile(
+            patientCode: "황연화",
+            surgeryDate: surgeryDate,
+            operatedSide: "우측",
+            age: 73,
+            weightKg: 63,
+            heightCm: 154,
+            preSurgeryActivity: "집안일 수준",
+            contralateralLegStatus: "괜찮아요",
+            currentAid: "지팡이"
+        )
+        modelContext.insert(profile)
+
+        let romTrend: [(Int, Double)] = [
+            (-6, 85.0), (-5, 88.0), (-4, 91.0), (-3, 94.0), (-2, 96.0), (-1, 97.0), (0, 98.0)
+        ]
+        for (dayOffset, flexion) in romTrend {
+            let date = cal.date(byAdding: .day, value: dayOffset, to: .now) ?? .now
+            let rom = ROMData(
+                date: date,
+                kneeFlexion: flexion,
+                kneeExtension: dayOffset == 0 ? 5.0 : 0.0,
+                podDay: 45 + dayOffset
+            )
+            modelContext.insert(rom)
+        }
+
+        modelContext.insert(PainRecord(
+            nrsScore: 3,
+            painTypes: ["묵직함"],
+            canWalk: true,
+            podDay: 45,
+            stsScore: 2
+        ))
     }
 }
 
@@ -311,11 +356,11 @@ struct OnboardingView: View {
                     Capsule()
                         .fill(i <= step ? Color.brand : Color.divider)
                         .frame(height: 4)
-                        .animation(.spring(response: 0.4), value: step)
+                        .animation(.spring(response: 0.18), value: step)
                 }
             }
             .padding(.horizontal, 28)
-            Text("Step \(step + 1) / 3").font(.system(size: 12)).foregroundColor(.textSecondary)
+            Text("Step \(step + 1) / 3").font(.system(size: 15)).foregroundColor(.textSecondary)
         }
         .padding(.top, 60).padding(.bottom, 8)
     }
@@ -330,8 +375,8 @@ struct OnboardingView: View {
                 }
             } label: {
                 Text(step < 2 ? "다음" : "시작하기")
-                    .font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 17)
+                    .font(.system(size: 20, weight: .semibold)).foregroundColor(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 24)
                     .background(canProceed ? Color.brand : Color.textTertiary)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
@@ -339,7 +384,7 @@ struct OnboardingView: View {
 
             if step > 0 {
                 Button { withAnimation { step -= 1 } } label: {
-                    Text("이전").font(.system(size: 15)).foregroundColor(.textSecondary)
+                    Text("이전").font(.system(size: 18)).foregroundColor(.textSecondary)
                 }
             }
         }
@@ -358,7 +403,7 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     onboardingField(label: "이름") {
                         TextField("이름을 입력하세요", text: $name)
-                            .font(.system(size: 16)).textInputAutocapitalization(.never)
+                            .font(.system(size: 18)).textInputAutocapitalization(.never)
                     }
 
                     onboardingField(label: "수술일") {
@@ -374,7 +419,7 @@ struct OnboardingView: View {
                                     operatedSide = side
                                 } label: {
                                     Text(side)
-                                        .font(.system(size: 15, weight: .medium))
+                                        .font(.system(size: 18, weight: .medium))
                                         .foregroundColor(operatedSide == side ? .white : .textSecondary)
                                         .padding(.horizontal, 24).padding(.vertical, 11)
                                         .background(operatedSide == side ? Color.brand : Color.surfaceBg)
@@ -403,32 +448,32 @@ struct OnboardingView: View {
                     onboardingField(label: "나이") {
                         HStack {
                             TextField("0", text: $ageText).keyboardType(.numberPad)
-                                .font(.system(size: 16))
-                            Text("세").font(.system(size: 14)).foregroundColor(.textSecondary)
+                                .font(.system(size: 18))
+                            Text("세").font(.system(size: 17)).foregroundColor(.textSecondary)
                         }
                     }
 
                     onboardingField(label: "키") {
                         HStack {
                             TextField("0", text: $heightText).keyboardType(.decimalPad)
-                                .font(.system(size: 16))
-                            Text("cm").font(.system(size: 14)).foregroundColor(.textSecondary)
+                                .font(.system(size: 18))
+                            Text("cm").font(.system(size: 17)).foregroundColor(.textSecondary)
                         }
                     }
 
                     onboardingField(label: "몸무게") {
                         HStack {
                             TextField("0", text: $weightText).keyboardType(.decimalPad)
-                                .font(.system(size: 16))
-                            Text("kg").font(.system(size: 14)).foregroundColor(.textSecondary)
+                                .font(.system(size: 18))
+                            Text("kg").font(.system(size: 17)).foregroundColor(.textSecondary)
                         }
                     }
 
                     onboardingField(label: "다리 길이 차이") {
                         HStack {
                             TextField("0", text: $legDiffText).keyboardType(.decimalPad)
-                                .font(.system(size: 16))
-                            Text("mm").font(.system(size: 14)).foregroundColor(.textSecondary)
+                                .font(.system(size: 18))
+                            Text("mm").font(.system(size: 17)).foregroundColor(.textSecondary)
                         }
                     }
 
@@ -476,17 +521,17 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 12) {
             ZStack {
                 Circle().fill(color.opacity(0.12)).frame(width: 56, height: 56)
-                Image(systemName: icon).font(.system(size: 24)).foregroundColor(color)
+                Image(systemName: icon).font(.system(size: 28)).foregroundColor(color)
             }
-            Text(title).font(.system(size: 24, weight: .bold)).foregroundColor(.textPrimary)
-            Text(subtitle).font(.system(size: 15)).foregroundColor(.textSecondary).lineSpacing(4)
+            Text(title).font(.system(size: 28, weight: .bold)).foregroundColor(.textPrimary)
+            Text(subtitle).font(.system(size: 18)).foregroundColor(.textSecondary).lineSpacing(4)
         }
     }
 
     @ViewBuilder
     func onboardingField<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(label).font(.system(size: 13, weight: .semibold)).foregroundColor(.textSecondary)
+            Text(label).font(.system(size: 16, weight: .semibold)).foregroundColor(.textSecondary)
             HStack {
                 content()
                 Spacer()
@@ -503,7 +548,7 @@ struct OnboardingView: View {
                 ForEach(options, id: \.self) { opt in
                     Button { selected.wrappedValue = opt } label: {
                         Text(opt)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.system(size: 17, weight: .medium))
                             .foregroundColor(selected.wrappedValue == opt ? .white : .textSecondary)
                             .padding(.horizontal, 16).padding(.vertical, 9)
                             .background(selected.wrappedValue == opt ? Color.brand : Color.appCard)
@@ -577,8 +622,8 @@ struct SafetyGateBlockView: View {
                 }
 
                 VStack(spacing: 10) {
-                    Text(title).font(.system(size: 22, weight: .bold)).foregroundColor(.textPrimary)
-                    Text(body_text).font(.system(size: 15)).foregroundColor(.textSecondary)
+                    Text(title).font(.system(size: 26, weight: .bold)).foregroundColor(.textPrimary)
+                    Text(body_text).font(.system(size: 18)).foregroundColor(.textSecondary)
                         .multilineTextAlignment(.center).lineSpacing(5)
                 }
 
@@ -587,13 +632,13 @@ struct SafetyGateBlockView: View {
                         dismiss()
                     } label: {
                         Text(actionLabel)
-                            .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).padding(.vertical, 16)
+                            .font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 24)
                             .background(iconColor).clipShape(RoundedRectangle(cornerRadius: 14))
                     }
                     if reason != .acutePhase {
                         Button { dismiss() } label: {
-                            Text("닫기").font(.system(size: 15)).foregroundColor(.textSecondary)
+                            Text("닫기").font(.system(size: 18)).foregroundColor(.textSecondary)
                         }
                     }
                 }
@@ -682,9 +727,9 @@ struct HomeHeroSection: View {
     let profile: PatientProfile?
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("안녕하세요").font(.system(size: 14)).foregroundColor(.textSecondary)
-            Text("\(profile?.patientCode ?? "이소민") 님,\n오늘도 함께 회복해요")
-                .font(.system(size: 24, weight: .bold)).foregroundColor(.textPrimary).lineSpacing(4)
+            Text("안녕하세요").font(.system(size: 17)).foregroundColor(.textSecondary)
+            Text("\(profile?.patientCode ?? "황연화") 님,\n오늘도 함께 회복해요")
+                .font(.system(size: 28, weight: .bold)).foregroundColor(.textPrimary).lineSpacing(4)
             podChip
         }
         .padding(.horizontal, 20).padding(.top, 56).padding(.bottom, 24)
@@ -696,7 +741,7 @@ struct HomeHeroSection: View {
         return HStack(spacing: 7) {
             Circle().fill(Color.brand).frame(width: 7, height: 7)
             Text("수술 후 \(day)일째  •  \(phase)")
-                .font(.system(size: 13, weight: .semibold)).foregroundColor(.brand)
+                .font(.system(size: 16, weight: .semibold)).foregroundColor(.brand)
         }
         .padding(.horizontal, 14).padding(.vertical, 8).background(Color.brandBg).clipShape(Capsule())
     }
@@ -739,16 +784,16 @@ struct HomeROMCard: View {
     var cardHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("무릎 가동 범위 (ROM)").font(.system(size: 13)).foregroundColor(.textSecondary)
+                Text("무릎 가동 범위 (ROM)").font(.system(size: 16)).foregroundColor(.textSecondary)
                 Text(hasData ? "최근 측정 결과" : "오늘의 측정")
-                    .font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
+                    .font(.system(size: 20, weight: .bold)).foregroundColor(.textPrimary)
             }
             Spacer()
             if let d = latest?.date {
                 Text(d.formatted(.dateTime.month().day()))
-                    .font(.system(size: 12)).foregroundColor(.textSecondary)
+                    .font(.system(size: 15)).foregroundColor(.textSecondary)
             } else {
-                Text("측정하기").font(.system(size: 12, weight: .bold)).foregroundColor(.white)
+                Text("측정하기").font(.system(size: 15, weight: .bold)).foregroundColor(.white)
                     .padding(.horizontal, 12).padding(.vertical, 6)
                     .background(Color.brand).clipShape(Capsule())
             }
@@ -764,11 +809,11 @@ struct HomeROMCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 let remaining = flexionGoal - flexion
                 Text("\(Int(flexionGoal))°")
-                    .font(.system(size: 26, weight: .bold)).foregroundColor(.textPrimary)
+                    .font(.system(size: 30, weight: .bold)).foregroundColor(.textPrimary)
                 Text(remaining > 0 ? "+\(Int(remaining))° 남음" : "목표 달성!")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(remaining > 0 ? .success : .brand)
-                Text("굴곡 목표").font(.system(size: 12, weight: .semibold)).foregroundColor(.brand)
+                Text("굴곡 목표").font(.system(size: 15, weight: .semibold)).foregroundColor(.brand)
             }
         }
     }
@@ -776,16 +821,16 @@ struct HomeROMCard: View {
     var progressBar: some View {
         VStack(spacing: 6) {
             HStack {
-                Text("목표까지").font(.system(size: 12)).foregroundColor(.textSecondary)
+                Text("목표까지").font(.system(size: 15)).foregroundColor(.textSecondary)
                 Spacer()
-                Text("\(Int(progress * 100))%").font(.system(size: 13, weight: .bold)).foregroundColor(.brand)
+                Text("\(Int(progress * 100))%").font(.system(size: 16, weight: .bold)).foregroundColor(.brand)
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.brand.opacity(0.12)).frame(height: 7)
                     Capsule().fill(Color.brand)
                         .frame(width: geo.size.width * CGFloat(progress), height: 7)
-                        .animation(.spring(response: 0.6), value: progress)
+                        .animation(.spring(response: 0.18), value: progress)
                 }
             }
             .frame(height: 7)
@@ -794,9 +839,9 @@ struct HomeROMCard: View {
 
     var emptyState: some View {
         HStack(spacing: 10) {
-            Image(systemName: "ruler").foregroundColor(.brand).font(.subheadline)
+            Image(systemName: "ruler").foregroundColor(.brand).font(.system(size: 18, weight: .medium))
             Text("아직 ROM 측정 기록이 없어요. 지금 측정해 보세요.")
-                .font(.system(size: 13)).foregroundColor(.textSecondary).lineSpacing(3)
+                .font(.system(size: 16)).foregroundColor(.textSecondary).lineSpacing(3)
         }
         .padding(12).background(Color.brand.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: 10))
     }
@@ -804,10 +849,10 @@ struct HomeROMCard: View {
     var measureButton: some View {
         Button { selectedTab = 1 } label: {
             HStack(spacing: 8) {
-                Image(systemName: "sensor.tag.radiowaves.forward.fill").font(.title3)
-                Text("센서로 ROM 측정하기").font(.system(size: 16, weight: .bold))
+                Image(systemName: "camera.viewfinder").font(.system(size: 22, weight: .semibold))
+                Text("ROM 측정하기").font(.system(size: 18, weight: .bold))
             }
-            .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 15)
+            .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 24)
             .background(Color.brand).clipShape(RoundedRectangle(cornerRadius: 14))
             .shadow(color: Color.brand.opacity(0.35), radius: 10, x: 0, y: 4)
         }
@@ -820,11 +865,11 @@ struct ROMStatView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .lastTextBaseline, spacing: 2) {
-                Text(String(format: "%.0f", value)).font(.system(size: 26, weight: .bold)).foregroundColor(.textPrimary)
-                Text("°").font(.system(size: 13)).foregroundColor(.textSecondary)
+                Text(String(format: "%.0f", value)).font(.system(size: 30, weight: .bold)).foregroundColor(.textPrimary)
+                Text("°").font(.system(size: 16)).foregroundColor(.textSecondary)
             }
-            Text(label).font(.system(size: 12, weight: .semibold)).foregroundColor(color)
-            Text(sublabel).font(.system(size: 10)).foregroundColor(.textTertiary)
+            Text(label).font(.system(size: 15, weight: .semibold)).foregroundColor(color)
+            Text(sublabel).font(.system(size: 15)).foregroundColor(.textTertiary)
         }
     }
 }
@@ -856,15 +901,15 @@ struct FollowUpScheduleCard: View {
         let days = Calendar.current.dateComponents([.day], from: .now, to: next.date).day ?? 0
         return HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text("다음 외래 방문").font(.system(size: 12)).foregroundColor(.brand)
+                Text("다음 외래 방문").font(.system(size: 15)).foregroundColor(.brand)
                 Text("\(next.week)주차 추적관찰")
-                    .font(.system(size: 15, weight: .bold)).foregroundColor(.textPrimary)
+                    .font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                 Text(next.date.formatted(.dateTime.year().month().day()))
-                    .font(.system(size: 13)).foregroundColor(.textSecondary)
+                    .font(.system(size: 16)).foregroundColor(.textSecondary)
             }
             Spacer()
             Text(days <= 0 ? "오늘!" : "D-\(days)")
-                .font(.system(size: 17, weight: .bold)).foregroundColor(.white)
+                .font(.system(size: 20, weight: .bold)).foregroundColor(.white)
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .background(Color.brand).clipShape(Capsule())
         }
@@ -880,16 +925,16 @@ struct FollowUpRow: View {
             Circle()
                 .fill(isPast ? Color.success : isNext ? Color.brand : Color.divider)
                 .frame(width: 8, height: 8)
-            Text("\(week)주차").font(.system(size: 14, weight: .semibold))
+            Text("\(week)주차").font(.system(size: 17, weight: .semibold))
                 .foregroundColor(isNext ? .brand : isPast ? .textSecondary : .textPrimary)
-            Text(weekLabel(week)).font(.system(size: 12)).foregroundColor(.textTertiary)
+            Text(weekLabel(week)).font(.system(size: 15)).foregroundColor(.textTertiary)
             Spacer()
             Text(date.formatted(.dateTime.month().day()))
-                .font(.system(size: 13)).foregroundColor(isPast ? .textSecondary : .textPrimary)
+                .font(.system(size: 16)).foregroundColor(isPast ? .textSecondary : .textPrimary)
             if isPast {
-                Image(systemName: "checkmark.circle.fill").foregroundColor(.success).font(.caption)
+                Image(systemName: "checkmark.circle.fill").foregroundColor(.success).font(.system(size: 15, weight: .medium))
             } else if isNext {
-                Image(systemName: "chevron.right").foregroundColor(.brand).font(.caption2)
+                Image(systemName: "chevron.right").foregroundColor(.brand).font(.system(size: 15, weight: .medium))
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
@@ -981,16 +1026,16 @@ struct HomeRecentPainCard: View {
             SectionLabel(text: "최근 통증 기록").padding(.horizontal, 20)
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("최근 통증 체크").font(.system(size: 15, weight: .bold)).foregroundColor(.textPrimary)
+                    Text("최근 통증 체크").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                     Spacer()
                     Text(record.date.formatted(.dateTime.month().day().hour().minute()))
-                        .font(.system(size: 12)).foregroundColor(.textSecondary)
+                        .font(.system(size: 15)).foregroundColor(.textSecondary)
                 }
                 NRSDotRow(score: record.nrsScore)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(chips, id: \.self) { chip in
-                            Text(chip).font(.system(size: 11, weight: .semibold)).foregroundColor(.textPrimary)
+                            Text(chip).font(.system(size: 15, weight: .semibold)).foregroundColor(.textPrimary)
                                 .padding(.horizontal, 10).padding(.vertical, 5)
                                 .background(Color.divider).clipShape(Capsule())
                         }
@@ -1000,7 +1045,7 @@ struct HomeRecentPainCard: View {
                     HStack(spacing: 10) {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.danger)
                         Text("의사 상담이 필요한 증상이 있어요")
-                            .font(.system(size: 13, weight: .semibold)).foregroundColor(.danger)
+                            .font(.system(size: 16, weight: .semibold)).foregroundColor(.danger)
                     }
                     .padding(12).background(Color.dangerBg).clipShape(RoundedRectangle(cornerRadius: 10))
                 }
@@ -1047,9 +1092,9 @@ struct HomeWeeklyChart: View {
             SectionLabel(text: "이번 주 ROM 추이").padding(.horizontal, 20)
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("무릎 굴곡 각도").font(.system(size: 15, weight: .bold)).foregroundColor(.textPrimary)
+                    Text("무릎 굴곡 각도").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                     Spacer()
-                    Text(trendText).font(.system(size: 12, weight: .bold)).foregroundColor(.brand)
+                    Text(trendText).font(.system(size: 15, weight: .bold)).foregroundColor(.brand)
                 }
                 HStack(alignment: .bottom, spacing: 6) {
                     ForEach(0..<weekData.count, id: \.self) { i in
@@ -1060,14 +1105,14 @@ struct HomeWeeklyChart: View {
                 if hasAnyData {
                     HStack {
                         Text(firstValue > 0 ? "7일 전 \(Int(firstValue))°" : "")
-                            .font(.system(size: 11)).foregroundColor(.textSecondary)
+                            .font(.system(size: 15)).foregroundColor(.textSecondary)
                         Spacer()
                         Text(todayValue > 0 ? "오늘 \(Int(todayValue))°" : "오늘 기록 없음")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundColor(todayValue > 0 ? .brand : .textTertiary)
                     }
                 } else {
-                    Text("이번 주 측정 기록이 없어요").font(.system(size: 12))
+                    Text("이번 주 측정 기록이 없어요").font(.system(size: 15))
                         .foregroundColor(.textSecondary).frame(maxWidth: .infinity, alignment: .center)
                 }
             }
@@ -1093,14 +1138,14 @@ struct WeeklyBarItem: View {
     var body: some View {
         VStack(spacing: 5) {
             if isToday && hasData {
-                Text("\(Int(value))°").font(.system(size: 10, weight: .bold)).foregroundColor(.brand)
+                Text("\(Int(value))°").font(.system(size: 15, weight: .bold)).foregroundColor(.brand)
             } else {
                 Color.clear.frame(height: 14)
             }
             RoundedRectangle(cornerRadius: 5)
                 .fill(hasData ? (isToday ? Color.brand : Color.brand.opacity(0.3)) : Color.divider)
                 .frame(height: barHeight)
-            Text(day).font(.system(size: 11))
+            Text(day).font(.system(size: 15))
                 .foregroundColor(isToday ? .brand : .textSecondary)
                 .fontWeight(isToday ? .bold : .regular)
         }
@@ -1129,10 +1174,10 @@ struct GapAnalysisNudge: View {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle().fill(color.opacity(0.15)).frame(width: 40, height: 40)
-                        Image(systemName: icon).foregroundColor(color).font(.system(size: 18))
+                        Image(systemName: icon).foregroundColor(color).font(.system(size: 20))
                     }
                     Text(message)
-                        .font(.system(size: 13)).foregroundColor(.textPrimary)
+                        .font(.system(size: 16)).foregroundColor(.textPrimary)
                         .lineSpacing(3).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(16).background(bgColor)
@@ -1158,10 +1203,10 @@ struct QuickMenuCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 PivotIcon(systemName: icon, color: color, bgColor: bgColor, size: 46)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 15, weight: .bold)).foregroundColor(.textPrimary)
-                    Text(subtitle).font(.system(size: 12)).foregroundColor(.textSecondary)
+                    Text(title).font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
+                    Text(subtitle).font(.system(size: 15)).foregroundColor(.textSecondary)
                 }
-                Text(badge).font(.system(size: 11, weight: .bold)).foregroundColor(badgeColor)
+                Text(badge).font(.system(size: 15, weight: .bold)).foregroundColor(badgeColor)
                     .padding(.horizontal, 9).padding(.vertical, 4).background(badgeBg).clipShape(Capsule())
             }
             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
@@ -1171,8 +1216,8 @@ struct QuickMenuCard: View {
         }
         .buttonStyle(.plain)
         .simultaneousGesture(DragGesture(minimumDistance: 0)
-            .onChanged { _ in withAnimation(.spring(response: 0.2)) { pressed = true } }
-            .onEnded { _ in withAnimation(.spring(response: 0.3)) { pressed = false } }
+            .onChanged { _ in withAnimation(.spring(response: 0.18)) { pressed = true } }
+            .onEnded { _ in withAnimation(.spring(response: 0.18)) { pressed = false } }
         )
     }
 }
@@ -1230,7 +1275,7 @@ struct ROMTabView: View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("ROM 측정").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
-                    Text("무릎 굴곡 각도를 측정해요").font(.system(size: 14)).foregroundColor(.white.opacity(0.5))
+                    Text("무릎 굴곡 각도를 측정해요").font(.system(size: 17)).foregroundColor(.white.opacity(0.5))
                 }
                 .padding(.top, 28).padding(.horizontal, 24)
 
@@ -1242,19 +1287,19 @@ struct ROMTabView: View {
                         HStack(spacing: 16) {
                             ZStack {
                                 Circle().fill(Color.brand.opacity(0.18)).frame(width: 58, height: 58)
-                                Image(systemName: "camera.fill").font(.system(size: 24)).foregroundColor(.brand)
+                                Image(systemName: "camera.fill").font(.system(size: 28)).foregroundColor(.brand)
                             }
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
-                                    Text("카메라로 측정").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
-                                    Text("추천").font(.system(size: 11, weight: .bold))
+                                    Text("카메라로 측정").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                                    Text("추천").font(.system(size: 15, weight: .bold))
                                         .foregroundColor(.brand)
                                         .padding(.horizontal, 7).padding(.vertical, 2)
                                         .background(Color.brand.opacity(0.18))
                                         .clipShape(Capsule())
                                 }
                                 Text("AI가 관절을 직접 인식해 각도를 측정해요")
-                                    .font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
+                                    .font(.system(size: 16)).foregroundColor(.white.opacity(0.85))
                             }
                             Spacer()
                             Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.3))
@@ -1272,12 +1317,12 @@ struct ROMTabView: View {
                             ZStack {
                                 Circle().fill(Color.white.opacity(0.07)).frame(width: 58, height: 58)
                                 Image(systemName: "iphone.homebutton.landscape")
-                                    .font(.system(size: 24)).foregroundColor(.white.opacity(0.7))
+                                    .font(.system(size: 28)).foregroundColor(.white.opacity(0.7))
                             }
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("센서로 측정").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
+                                Text("센서로 측정").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
                                 Text("폰을 정강이에 대고 기울기로 측정해요")
-                                    .font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
+                                    .font(.system(size: 16)).foregroundColor(.white.opacity(0.85))
                             }
                             Spacer()
                             Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.3))
@@ -1349,7 +1394,7 @@ struct ROMCameraView: View {
         HStack(alignment: .top) {
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(10)
                     .background(.ultraThinMaterial)
@@ -1358,17 +1403,17 @@ struct ROMCameraView: View {
             .buttonStyle(.plain)
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Text("센서 ROM 측정").font(.system(size: 16, weight: .bold)).foregroundColor(.white)
-                Text(stepSubtitle).font(.system(size: 12)).foregroundColor(.white.opacity(0.55))
+                Text("센서 ROM 측정").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                Text(stepSubtitle).font(.system(size: 15)).foregroundColor(.white.opacity(0.85))
             }
             if step == 1 || step == 2 {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("현재 각도").font(.caption2).foregroundColor(.white.opacity(0.45))
+                    Text("현재 각도").font(.system(size: 15, weight: .medium)).foregroundColor(.white.opacity(0.80))
                     HStack(alignment: .lastTextBaseline, spacing: 1) {
                         Text(String(format: "%.1f", motion.angle))
-                            .font(.system(size: 26, weight: .bold)).foregroundColor(.brand)
+                            .font(.system(size: 30, weight: .bold)).foregroundColor(.brand)
                             .contentTransition(.numericText()).animation(.easeOut(duration: 0.1), value: motion.angle)
-                        Text("°").font(.subheadline).foregroundColor(.brand.opacity(0.8))
+                        Text("°").font(.system(size: 18, weight: .medium)).foregroundColor(.brand.opacity(0.8))
                     }
                 }
             }
@@ -1405,10 +1450,10 @@ struct ROMCameraView: View {
             }
             VStack(spacing: 12) {
                 Text("스마트폰으로\n무릎 ROM을 측정해요")
-                    .font(.system(size: 22, weight: .bold)).foregroundColor(.white)
+                    .font(.system(size: 26, weight: .bold)).foregroundColor(.white)
                     .multilineTextAlignment(.center).lineSpacing(4)
                 Text("가속도 센서를 이용해 정확한\n굴곡 각도를 측정할 수 있어요")
-                    .font(.system(size: 14)).foregroundColor(.white.opacity(0.6))
+                    .font(.system(size: 17)).foregroundColor(.white.opacity(0.6))
                     .multilineTextAlignment(.center).lineSpacing(4)
             }
             VStack(alignment: .leading, spacing: 12) {
@@ -1421,7 +1466,7 @@ struct ROMCameraView: View {
             if !motion.isAvailable {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.warning)
-                    Text("이 기기에서 동작 센서를 사용할 수 없어요").font(.system(size: 13)).foregroundColor(.warning)
+                    Text("이 기기에서 동작 센서를 사용할 수 없어요").font(.system(size: 16)).foregroundColor(.warning)
                 }
             }
         }
@@ -1432,9 +1477,9 @@ struct ROMCameraView: View {
             arcDisplay(angle: motion.angle, color: .success, label: "기준 각도")
             VStack(spacing: 8) {
                 Text("다리를 자연스럽게 내리세요")
-                    .font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                    .font(.system(size: 22, weight: .bold)).foregroundColor(.white)
                 Text("발을 바닥에 놓고 정강이를\n최대한 수직으로 유지해 주세요")
-                    .font(.system(size: 14)).foregroundColor(.white.opacity(0.6))
+                    .font(.system(size: 17)).foregroundColor(.white.opacity(0.6))
                     .multilineTextAlignment(.center).lineSpacing(4)
             }
             stabilityBadge
@@ -1446,9 +1491,9 @@ struct ROMCameraView: View {
             arcDisplay(angle: max(0, motion.angle - referenceAngle), color: .brand, label: "굴곡 각도")
             VStack(spacing: 8) {
                 Text("무릎을 최대한 구부리세요")
-                    .font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                    .font(.system(size: 22, weight: .bold)).foregroundColor(.white)
                 Text("통증 없는 범위에서 구부린 뒤\n그 자세를 유지해 주세요")
-                    .font(.system(size: 14)).foregroundColor(.white.opacity(0.6))
+                    .font(.system(size: 17)).foregroundColor(.white.opacity(0.6))
                     .multilineTextAlignment(.center).lineSpacing(4)
             }
             stabilityBadge
@@ -1462,7 +1507,7 @@ struct ROMCameraView: View {
             if showSaved {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill").foregroundColor(.success)
-                    Text("기록이 저장되었어요").font(.system(size: 14, weight: .semibold)).foregroundColor(.success)
+                    Text("기록이 저장되었어요").font(.system(size: 17, weight: .semibold)).foregroundColor(.success)
                 }
                 .padding(12).background(Color.success.opacity(0.12)).clipShape(RoundedRectangle(cornerRadius: 10))
             }
@@ -1476,8 +1521,8 @@ struct ROMCameraView: View {
             if step == 1 || step == 2 {
                 Button { showAnkleInput = true } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "arrow.up.arrow.down").font(.subheadline)
-                        Text("발목 ROM").font(.system(size: 14, weight: .semibold))
+                        Image(systemName: "arrow.up.arrow.down").font(.system(size: 18, weight: .medium))
+                        Text("발목 ROM").font(.system(size: 17, weight: .semibold))
                     }
                     .foregroundColor(.white.opacity(0.85))
                     .padding(.horizontal, 18).padding(.vertical, 15)
@@ -1487,8 +1532,8 @@ struct ROMCameraView: View {
             }
             Button { handleAction() } label: {
                 Text(actionLabel)
-                    .font(.system(size: 17, weight: .bold)).foregroundColor(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 16)
+                    .font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 24)
                     .background(actionColor).clipShape(RoundedRectangle(cornerRadius: 16))
                     .shadow(color: actionColor.opacity(0.5), radius: 14, x: 0, y: 5)
             }
@@ -1518,17 +1563,17 @@ struct ROMCameraView: View {
     func handleAction() {
         switch step {
         case 0:
-            withAnimation(.easeInOut(duration: 0.3)) { step = 1 }
+            withAnimation(.easeInOut(duration: 0.18)) { step = 1 }
         case 1:
             referenceAngle = motion.angle
-            withAnimation(.easeInOut(duration: 0.3)) { step = 2 }
+            withAnimation(.easeInOut(duration: 0.18)) { step = 2 }
         case 2:
             flexionAngle = motion.angle
-            withAnimation(.easeInOut(duration: 0.3)) { step = 3 }
+            withAnimation(.easeInOut(duration: 0.18)) { step = 3 }
         default:
             if showSaved {
                 showSaved = false
-                withAnimation(.easeInOut(duration: 0.3)) { step = 1 }
+                withAnimation(.easeInOut(duration: 0.18)) { step = 1 }
             } else {
                 saveROM()
             }
@@ -1557,15 +1602,15 @@ struct ROMCameraView: View {
                 Circle().trim(from: 0, to: min(angle / 140.0, 1.0))
                     .stroke(color, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                     .rotationEffect(.degrees(-90)).frame(width: 160, height: 160)
-                    .animation(.easeOut(duration: 0.15), value: angle)
+                    .animation(.easeOut(duration: 0.12), value: angle)
                 VStack(spacing: 0) {
                     Text(String(format: "%.1f", max(0, angle)))
                         .font(.system(size: 44, weight: .bold)).foregroundColor(color)
                         .contentTransition(.numericText()).animation(.easeOut(duration: 0.1), value: angle)
-                    Text("°").font(.system(size: 18)).foregroundColor(color.opacity(0.7))
+                    Text("°").font(.system(size: 20)).foregroundColor(color.opacity(0.7))
                 }
             }
-            Text(label).font(.system(size: 13)).foregroundColor(.white.opacity(0.55))
+            Text(label).font(.system(size: 16)).foregroundColor(.white.opacity(0.85))
         }
     }
 
@@ -1574,9 +1619,9 @@ struct ROMCameraView: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle().fill(Color.brand.opacity(0.3)).frame(width: 26, height: 26)
-                Text(num).font(.system(size: 13, weight: .bold)).foregroundColor(.brand)
+                Text(num).font(.system(size: 16, weight: .bold)).foregroundColor(.brand)
             }
-            Text(text).font(.system(size: 14)).foregroundColor(.white.opacity(0.8))
+            Text(text).font(.system(size: 17)).foregroundColor(.white.opacity(0.8))
         }
     }
 
@@ -1586,12 +1631,12 @@ struct ROMCameraView: View {
                 .frame(width: 8, height: 8)
                 .shadow(color: (motion.isStable ? Color.success : Color.warning).opacity(0.6), radius: 4)
             Text(motion.isStable ? "안정됨 — 버튼을 눌러주세요" : "기기를 고정해 주세요...")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 16, weight: .medium))
                 .foregroundColor(motion.isStable ? .success : .warning)
         }
         .padding(.horizontal, 18).padding(.vertical, 10)
         .background(.ultraThinMaterial).clipShape(Capsule())
-        .animation(.easeInOut(duration: 0.3), value: motion.isStable)
+        .animation(.easeInOut(duration: 0.18), value: motion.isStable)
     }
 
     var romTargetRow: some View {
@@ -1615,10 +1660,10 @@ struct ROMCameraView: View {
     func romTarget(label: String, value: String, met: Bool, color: Color) -> some View {
         VStack(spacing: 5) {
             Image(systemName: met ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 20)).foregroundColor(met ? color : .white.opacity(0.25))
-            Text(value).font(.system(size: 16, weight: .bold))
+                .font(.system(size: 22)).foregroundColor(met ? color : .white.opacity(0.25))
+            Text(value).font(.system(size: 18, weight: .bold))
                 .foregroundColor(met ? color : .white.opacity(0.4))
-            Text(label).font(.system(size: 11)).foregroundColor(.white.opacity(0.45))
+            Text(label).font(.system(size: 15)).foregroundColor(.white.opacity(0.80))
         }
     }
 }
@@ -1635,7 +1680,7 @@ struct AnkleROMInputSheet: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
-                    Text("추가 ROM 입력").font(.title3.bold()).foregroundColor(.textPrimary)
+                    Text("추가 ROM 입력").font(.system(size: 22, weight: .bold)).foregroundColor(.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.top, 8)
 
                     PivotCard {
@@ -1663,8 +1708,8 @@ struct AnkleROMInputSheet: View {
                     Button {
                         dismiss()
                     } label: {
-                        Text("저장").font(.system(size: 17, weight: .bold)).foregroundColor(.white)
-                            .frame(maxWidth: .infinity).padding(.vertical, 16)
+                        Text("저장").font(.system(size: 20, weight: .bold)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 24)
                             .background(Color.brand).clipShape(RoundedRectangle(cornerRadius: 14))
                     }
                     .buttonStyle(.plain).padding(.horizontal, 20)
@@ -1678,9 +1723,9 @@ struct AnkleROMInputSheet: View {
 
     var inputGuide: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "info.circle.fill").foregroundColor(.brand).font(.subheadline)
+            Image(systemName: "info.circle.fill").foregroundColor(.brand).font(.system(size: 18, weight: .medium))
             Text("신전: 다리를 최대한 폈을 때 남은 굽힘 각도예요. 완전히 펴지면 0°, 굽힘이 남으면 양수 값이에요.")
-                .font(.system(size: 13)).foregroundColor(.textSecondary).lineSpacing(4)
+                .font(.system(size: 16)).foregroundColor(.textSecondary).lineSpacing(4)
         }
         .padding(14).background(Color.brandBg).clipShape(RoundedRectangle(cornerRadius: 12))
     }
@@ -1696,18 +1741,18 @@ struct KneeExtensionSlider: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("신전 부족 (Extension Lag)").font(.system(size: 15, weight: .semibold)).foregroundColor(.textPrimary)
-                    Text("다리를 완전히 폈을 때 남는 굽힘 각도").font(.system(size: 12)).foregroundColor(.textSecondary)
+                    Text("신전 부족 (Extension Lag)").font(.system(size: 18, weight: .semibold)).foregroundColor(.textPrimary)
+                    Text("다리를 완전히 폈을 때 남는 굽힘 각도").font(.system(size: 15)).foregroundColor(.textSecondary)
                 }
                 Spacer()
                 HStack(alignment: .lastTextBaseline, spacing: 2) {
-                    Text(String(format: "%.0f", value)).font(.system(size: 26, weight: .bold)).foregroundColor(color)
-                    Text("°").font(.system(size: 13)).foregroundColor(.textSecondary)
+                    Text(String(format: "%.0f", value)).font(.system(size: 30, weight: .bold)).foregroundColor(color)
+                    Text("°").font(.system(size: 16)).foregroundColor(.textSecondary)
                 }
             }
             Slider(value: $value, in: 0...40, step: 1).tint(color)
             HStack {
-                Text(goalText).font(.system(size: 11)).foregroundColor(color)
+                Text(goalText).font(.system(size: 15)).foregroundColor(color)
                 Spacer()
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
@@ -1733,18 +1778,18 @@ struct AnkleSlider: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(label).font(.system(size: 15, weight: .semibold)).foregroundColor(.textPrimary)
-                    Text(detail).font(.system(size: 12)).foregroundColor(.textSecondary)
+                    Text(label).font(.system(size: 18, weight: .semibold)).foregroundColor(.textPrimary)
+                    Text(detail).font(.system(size: 15)).foregroundColor(.textSecondary)
                 }
                 Spacer()
                 HStack(alignment: .lastTextBaseline, spacing: 2) {
-                    Text(String(format: "%.0f", value)).font(.system(size: 26, weight: .bold)).foregroundColor(color)
-                    Text("°").font(.system(size: 13)).foregroundColor(.textSecondary)
+                    Text(String(format: "%.0f", value)).font(.system(size: 30, weight: .bold)).foregroundColor(color)
+                    Text("°").font(.system(size: 16)).foregroundColor(.textSecondary)
                 }
             }
             Slider(value: $value, in: range, step: 1).tint(color)
             HStack {
-                Text("목표 \(Int(target))° 이상").font(.system(size: 11)).foregroundColor(.textSecondary)
+                Text("목표 \(Int(target))° 이상").font(.system(size: 15)).foregroundColor(.textSecondary)
                 Spacer()
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
@@ -1768,14 +1813,14 @@ struct PainHeaderCard: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(Date.now.formatted(.dateTime.month().day().weekday()))
-                        .font(.subheadline).foregroundColor(.textSecondary)
-                    Text("오늘의 통증 기록").font(.title3.bold()).foregroundColor(.textPrimary)
+                        .font(.system(size: 18, weight: .medium)).foregroundColor(.textSecondary)
+                    Text("오늘의 통증 기록").font(.system(size: 22, weight: .bold)).foregroundColor(.textPrimary)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 5) {
-                    Text("수술 후").font(.caption).foregroundColor(.textSecondary)
-                    Text("POD \(podDay)일").font(.title3.bold()).foregroundColor(.danger)
-                    Text(phase).font(.caption.bold()).foregroundColor(.white)
+                    Text("수술 후").font(.system(size: 15, weight: .medium)).foregroundColor(.textSecondary)
+                    Text("POD \(podDay)일").font(.system(size: 22, weight: .bold)).foregroundColor(.danger)
+                    Text(phase).font(.system(size: 15, weight: .bold)).foregroundColor(.white)
                         .padding(.horizontal, 10).padding(.vertical, 4)
                         .background(Color.danger).clipShape(Capsule())
                 }
@@ -1795,10 +1840,10 @@ struct PainTypeButton: View {
                 ZStack {
                     Circle().fill(selected ? Color.white.opacity(0.25) : iconColor.opacity(0.12))
                         .frame(width: 40, height: 40)
-                    Image(systemName: sfSymbol).font(.system(size: 18, weight: .semibold))
+                    Image(systemName: sfSymbol).font(.system(size: 20, weight: .semibold))
                         .foregroundColor(selected ? .white : iconColor)
                 }
-                Text(label).font(.system(size: 14, weight: .semibold))
+                Text(label).font(.system(size: 17, weight: .semibold))
                     .foregroundColor(selected ? .white : .textPrimary)
             }
             .frame(maxWidth: .infinity).padding(.vertical, 14)
@@ -1807,11 +1852,11 @@ struct PainTypeButton: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? Color.danger : Color.divider, lineWidth: 1.5))
             .shadow(color: selected ? Color.danger.opacity(0.25) : .black.opacity(0.03), radius: 6, x: 0, y: 2)
         }
-        .buttonStyle(.plain).scaleEffect(selected ? 0.97 : 1.0).animation(.spring(response: 0.3), value: selected)
+        .buttonStyle(.plain).scaleEffect(selected ? 0.97 : 1.0).animation(.spring(response: 0.18), value: selected)
     }
 
     func toggleSelection() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+        withAnimation(.spring(response: 0.18, dampingFraction: 0.7)) {
             if label == "없음" {
                 selectedPainTypes = selected ? [] : ["없음"]
             } else {
@@ -1852,13 +1897,13 @@ struct NRSSliderSection: View {
                 PainFaceView(score: Int(nrsScore))
                 HStack(alignment: .lastTextBaseline, spacing: 4) {
                     Text("\(Int(nrsScore))").font(.system(size: 42, weight: .bold)).foregroundColor(nrsColor)
-                    Text("점").font(.title3.weight(.medium)).foregroundColor(nrsColor.opacity(0.7))
+                    Text("점").font(.system(size: 22, weight: .medium)).foregroundColor(nrsColor.opacity(0.7))
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 5) {
-                Text(nrsLabel).font(.system(size: 16, weight: .bold)).foregroundColor(nrsColor)
-                Text("NRS 통증 척도").font(.caption).foregroundColor(.textSecondary)
+                Text(nrsLabel).font(.system(size: 18, weight: .bold)).foregroundColor(nrsColor)
+                Text("NRS 통증 척도").font(.system(size: 15, weight: .medium)).foregroundColor(.textSecondary)
             }
         }
     }
@@ -1867,15 +1912,15 @@ struct NRSSliderSection: View {
         VStack(spacing: 6) {
             Slider(value: $nrsScore, in: 0...10, step: 1).tint(nrsColor)
             HStack {
-                Text("없음").font(.system(size: 11)).foregroundColor(.textSecondary)
+                Text("없음").font(.system(size: 15)).foregroundColor(.textSecondary)
                 Spacer()
-                Text("약함").font(.system(size: 11)).foregroundColor(.textSecondary)
+                Text("약함").font(.system(size: 15)).foregroundColor(.textSecondary)
                 Spacer()
-                Text("보통").font(.system(size: 11)).foregroundColor(.textSecondary)
+                Text("보통").font(.system(size: 15)).foregroundColor(.textSecondary)
                 Spacer()
-                Text("심함").font(.system(size: 11)).foregroundColor(.textSecondary)
+                Text("심함").font(.system(size: 15)).foregroundColor(.textSecondary)
                 Spacer()
-                Text("극심").font(.system(size: 11)).foregroundColor(.textSecondary)
+                Text("극심").font(.system(size: 15)).foregroundColor(.textSecondary)
             }
         }
     }
@@ -1931,9 +1976,9 @@ struct PainPersistCard: View {
             HStack(spacing: 14) {
                 PivotIcon(systemName: "clock.badge.exclamationmark", color: .danger, bgColor: .dangerBg, size: 40)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("통증 지속 여부 확인").font(.system(size: 15, weight: .semibold)).foregroundColor(.danger)
+                    Text("통증 지속 여부 확인").font(.system(size: 18, weight: .semibold)).foregroundColor(.danger)
                     Text("30분 이상 쉬어도 통증이 가라앉지 않나요?")
-                        .font(.system(size: 13)).foregroundColor(.textSecondary)
+                        .font(.system(size: 16)).foregroundColor(.textSecondary)
                 }
                 Spacer()
                 Toggle("", isOn: $painPersists).tint(.danger).labelsHidden()
@@ -1959,9 +2004,9 @@ struct STSCheckCard: View {
                 HStack(spacing: 14) {
                     PivotIcon(systemName: "figure.stand", color: .brand, bgColor: .brandBg, size: 40)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("의자 일어나기 (STS)").font(.system(size: 15, weight: .semibold)).foregroundColor(.textPrimary)
+                        Text("의자 일어나기 (STS)").font(.system(size: 18, weight: .semibold)).foregroundColor(.textPrimary)
                         Text("의자에서 일어날 때 어떻게 하시나요?")
-                            .font(.system(size: 13)).foregroundColor(.textSecondary)
+                            .font(.system(size: 16)).foregroundColor(.textSecondary)
                     }
                     Spacer()
                 }
@@ -1975,7 +2020,7 @@ struct STSCheckCard: View {
                                     .frame(width: 16, height: 16)
                                     .overlay(Circle().fill(.white).frame(width: 6, height: 6).opacity(selected ? 1 : 0))
                                 Text(label)
-                                    .font(.system(size: 14, weight: selected ? .semibold : .regular))
+                                    .font(.system(size: 17, weight: selected ? .semibold : .regular))
                                     .foregroundColor(selected ? color : .textPrimary)
                                 Spacer()
                             }
@@ -2056,7 +2101,7 @@ struct PainCheckView: View {
                 saveButton
             }
             .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 36)
-            .animation(.spring(response: 0.4), value: isRedFlag)
+            .animation(.spring(response: 0.18), value: isRedFlag)
         }
     }
 
@@ -2078,9 +2123,9 @@ struct PainCheckView: View {
         HStack(alignment: .top, spacing: 14) {
             PivotIcon(systemName: "exclamationmark.triangle.fill", color: .danger, bgColor: .dangerBg, size: 40)
             VStack(alignment: .leading, spacing: 6) {
-                Text("지금 바로 병원에 연락하세요").font(.system(size: 16, weight: .bold)).foregroundColor(.danger)
+                Text("지금 바로 병원에 연락하세요").font(.system(size: 18, weight: .bold)).foregroundColor(.danger)
                 Text("위험 신호가 감지됐어요. 운동을 중단하고\n담당 의사에게 빨리 연락하거나 외래에 내원해 주세요.")
-                    .font(.subheadline).foregroundColor(.textSecondary).lineSpacing(4)
+                    .font(.system(size: 18, weight: .medium)).foregroundColor(.textSecondary).lineSpacing(4)
             }
         }
         .padding(20).background(Color.dangerBg).clipShape(RoundedRectangle(cornerRadius: 18))
@@ -2091,9 +2136,9 @@ struct PainCheckView: View {
         Button { savePainRecord() } label: {
             HStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill").font(.title2)
-                Text("오늘 기록 완료").font(.system(size: 18, weight: .bold))
+                Text("오늘 기록 완료").font(.system(size: 20, weight: .bold))
             }
-            .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 18)
+            .foregroundColor(.white).frame(maxWidth: .infinity).padding(.vertical, 24)
             .background(Color.danger).clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(color: Color.danger.opacity(0.4), radius: 12, x: 0, y: 5)
         }
@@ -2103,7 +2148,7 @@ struct PainCheckView: View {
     var savedBanner: some View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.seal.fill").foregroundColor(.white)
-            Text("통증 기록이 저장됐어요!").font(.subheadline.bold()).foregroundColor(.white)
+            Text("통증 기록이 저장됐어요!").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
         }
         .padding(.horizontal, 22).padding(.vertical, 13)
         .background(Color.success).clipShape(Capsule())
@@ -2118,8 +2163,8 @@ struct PainCheckView: View {
             hasFallInjury: hasFallInjury, stsScore: stsScore
         )
         modelContext.insert(record)
-        withAnimation(.spring(response: 0.4)) { showSavedBanner = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { withAnimation { showSavedBanner = false } }
+        withAnimation(.spring(response: 0.18)) { showSavedBanner = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { withAnimation { showSavedBanner = false } }
 
         // 서버 세션 생성 + Red Flag 전송
         let profile = profiles.first
@@ -2152,6 +2197,9 @@ struct ExerciseRecommendView: View {
     @State private var selectedPhase: ExerciseItem.PODPhase = .mid
     @State private var didSetInitialPhase = false
     @State private var serverVideos: [APIService.VideoResult] = []
+    @State private var showValidation = false
+    @State private var showSubtitlePlayer = false
+    @State private var subtitleVideoTitle = ""
 
     var profile: PatientProfile? { profiles.first }
 
@@ -2165,10 +2213,15 @@ struct ExerciseRecommendView: View {
     }
 
     var podDay: Int { profile?.podDay ?? 0 }
-
     var filtered: [ExerciseItem] { ExerciseItem.mockData.filter { $0.phase == selectedPhase } }
-
     var isCurrentPhase: Bool { selectedPhase == currentPODPhase }
+
+    // 서버 영상 없을 때 항상 보여줄 데모 영상
+    let demoVideos: [(id: String, title: String, url: String)] = [
+        ("1", "무릎인공관절술 재활치료 2단계 (수술 후 2~6주)", "https://www.youtube.com/watch?v=a1se7IH5DfE"),
+        ("2", "인공관절수술 후 한달차 재활운동 6가지", "https://www.youtube.com/watch?v=Ce3EXfU2pDE"),
+        ("3", "단계별 재활치료 및 운동방법 — 예손병원", "https://www.youtube.com/watch?v=NkcB-rKvIhg"),
+    ]
 
     var body: some View {
         NavigationStack {
@@ -2176,22 +2229,17 @@ struct ExerciseRecommendView: View {
                 Color.appBg.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 14) {
-                        if let p = profile {
-                            paceBanner(p)
-                        }
-                        if !serverVideos.isEmpty {
-                            serverVideoSection
-                        }
+                        if let p = profile { paceBanner(p) }
+                        aiVideoSection
+                        videoValidationCard
                         phaseFilter
-                        if !isCurrentPhase {
-                            phaseNotice
-                        }
+                        if !isCurrentPhase { phaseNotice }
                         ForEach(filtered) { item in
                             ExerciseCard(exercise: item, podDay: podDay,
                                          isCurrent: item.phase == currentPODPhase)
                         }
                         if filtered.isEmpty {
-                            Text("이 단계의 운동이 없어요").font(.subheadline)
+                            Text("이 단계의 운동이 없어요").font(.system(size: 18, weight: .medium))
                                 .foregroundColor(.textSecondary).padding(.top, 40)
                         }
                     }
@@ -2207,6 +2255,14 @@ struct ExerciseRecommendView: View {
             }
             Task { await fetchServerVideos() }
         }
+        .sheet(isPresented: $showValidation) {
+            VideoValidationSheet()
+        }
+        .sheet(isPresented: $showSubtitlePlayer) {
+            SubtitlePlayerView(videoTitle: subtitleVideoTitle)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+        }
     }
 
     func fetchServerVideos() async {
@@ -2216,40 +2272,122 @@ struct ExerciseRecommendView: View {
         }
     }
 
+    // MARK: AI 추천 영상 섹션 (LLM 큐레이션 배지 포함)
+
     @ViewBuilder
-    var serverVideoSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles").foregroundColor(.brand).font(.system(size: 13))
-                Text("AI 추천 영상").font(.system(size: 14, weight: .bold)).foregroundColor(.brand)
+    var aiVideoSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 헤더 — LLM 큐레이션 배지
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles").foregroundColor(.brand).font(.system(size: 16))
+                        Text("AI 추천 영상").font(.system(size: 18, weight: .bold)).foregroundColor(.primary)
+                    }
+                    Text("벡터 DB → LLM이 현재 단계 최적 영상 선별")
+                        .font(.system(size: 15)).foregroundColor(.textSecondary)
+                }
+                Spacer()
+                HStack(spacing: 4) {
+                    Circle().fill(Color.success).frame(width: 6, height: 6)
+                    Text("LLM 큐레이션").font(.system(size: 15, weight: .semibold)).foregroundColor(.success)
+                }
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Color.success.opacity(0.12))
+                .clipShape(Capsule())
             }
-            ForEach(serverVideos) { video in
-                if let urlStr = video.url, let url = URL(string: urlStr) {
-                    Link(destination: url) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "play.rectangle.fill")
-                                .foregroundColor(.brand).font(.system(size: 18))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(video.title)
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.primary)
-                                    .lineLimit(2)
-                                Text("YouTube에서 보기")
-                                    .font(.caption2).foregroundColor(.textSecondary)
-                            }
-                            Spacer()
-                            Image(systemName: "arrow.up.right").font(.caption).foregroundColor(.textTertiary)
+
+            // 영상 목록
+            let videos = serverVideos.isEmpty ? demoVideos.map { ($0.id, $0.title, $0.url) }
+                       : serverVideos.compactMap { v -> (String, String, String)? in
+                           guard let u = v.url else { return nil }
+                           return (v.id, v.title, u)
+                       }
+
+            ForEach(Array(videos.enumerated()), id: \.offset) { _, video in
+                HStack(spacing: 12) {
+                    // 썸네일 자리
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(LinearGradient(colors: [Color.brand.opacity(0.3), Color.brand.opacity(0.1)],
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 64, height: 48)
+                        Image(systemName: "play.fill").foregroundColor(.brand).font(.system(size: 18))
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(video.1)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary).lineLimit(2)
+                        HStack(spacing: 6) {
+                            Label("한국어 자막", systemImage: "captions.bubble.fill")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(.brand)
                         }
-                        .padding(12)
-                        .background(Color.brandBg)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    Spacer()
+
+                    VStack(spacing: 6) {
+                        // 자막 버튼
+                        Button {
+                            subtitleVideoTitle = video.1
+                            showSubtitlePlayer = true
+                        } label: {
+                            Image(systemName: "captions.bubble.fill")
+                                .font(.system(size: 17))
+                                .foregroundColor(.white)
+                                .padding(7)
+                                .background(Color.brand)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+
+                        // YouTube 링크
+                        if let url = URL(string: video.2) {
+                            Link(destination: url) {
+                                Image(systemName: "arrow.up.right.square")
+                                    .font(.system(size: 17))
+                                    .foregroundColor(.textSecondary)
+                            }
+                        }
                     }
                 }
+                .padding(12)
+                .background(Color.surfaceBg)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
             }
         }
         .padding(14)
-        .background(Color.surfaceBg)
+        .background(Color.brandBg)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.brand.opacity(0.2), lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: 역방향 영상 검증 카드
+
+    var videoValidationCard: some View {
+        Button { showValidation = true } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle().fill(Color(hex: "F59E0B").opacity(0.15)).frame(width: 44, height: 44)
+                    Image(systemName: "checkmark.shield.fill")
+                        .font(.system(size: 20)).foregroundColor(Color(hex: "F59E0B"))
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("내 영상 검증하기").font(.system(size: 17, weight: .bold)).foregroundColor(.primary)
+                    Text("YouTube 링크를 붙여넣으면 현재 단계에 맞는지 AI가 판단해요")
+                        .font(.system(size: 15)).foregroundColor(.textSecondary).lineSpacing(2)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundColor(.textTertiary).font(.system(size: 15))
+            }
+            .padding(14)
+            .background(Color(hex: "F59E0B").opacity(0.07))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "F59E0B").opacity(0.2), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
     }
 
     func paceBanner(_ p: PatientProfile) -> some View {
@@ -2258,13 +2396,13 @@ struct ExerciseRecommendView: View {
         let paceIcon = p.pace == "적극" ? "hare.fill" : p.pace == "보수" ? "tortoise.fill" : "figure.walk"
         let paceDesc = p.pace == "적극" ? "더 빠른 진도가 권장돼요" : p.pace == "보수" ? "천천히 안전하게 진행해요" : "권장 속도로 진행해요"
         return HStack(spacing: 10) {
-            Image(systemName: paceIcon).foregroundColor(paceColor).font(.system(size: 16))
+            Image(systemName: paceIcon).foregroundColor(paceColor).font(.system(size: 18))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text("운동 속도").font(.system(size: 12)).foregroundColor(.textSecondary)
-                    Text(p.pace).font(.system(size: 13, weight: .bold)).foregroundColor(paceColor)
+                    Text("운동 속도").font(.system(size: 15)).foregroundColor(.textSecondary)
+                    Text(p.pace).font(.system(size: 16, weight: .bold)).foregroundColor(paceColor)
                 }
-                Text(paceDesc).font(.system(size: 11)).foregroundColor(.textSecondary)
+                Text(paceDesc).font(.system(size: 15)).foregroundColor(.textSecondary)
             }
             Spacer()
         }
@@ -2285,13 +2423,341 @@ struct ExerciseRecommendView: View {
 
     var phaseNotice: some View {
         HStack(spacing: 8) {
-            Image(systemName: "info.circle.fill").foregroundColor(.brand).font(.subheadline)
+            Image(systemName: "info.circle.fill").foregroundColor(.brand).font(.system(size: 18, weight: .medium))
             Text("현재 회복 단계(\(currentPODPhase.rawValue))가 아닌 운동을 보고 있어요.")
-                .font(.system(size: 13)).foregroundColor(.textSecondary).lineSpacing(3)
+                .font(.system(size: 16)).foregroundColor(.textSecondary).lineSpacing(3)
         }
         .padding(12).background(Color.brandBg).clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+}
+
+// MARK: - VideoValidationSheet (역방향 영상 검증)
+
+struct VideoValidationSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var urlText = ""
+    @State private var isChecking = false
+    @State private var result: ValidationResult? = nil
+
+    enum ValidationResult {
+        case pass(String)
+        case fail(String)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // 설명
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("YouTube 링크를 붙여넣으면 AI가\n현재 회복 단계에 맞는 영상인지 판단합니다.")
+                            .font(.system(size: 18)).foregroundColor(.textSecondary).lineSpacing(4)
+                        HStack(spacing: 16) {
+                            Label("채널 신뢰도 확인", systemImage: "building.2.fill").font(.system(size: 15, weight: .medium)).foregroundColor(.textSecondary)
+                            Label("단계 적합성 분석", systemImage: "waveform.path.ecg").font(.system(size: 15, weight: .medium)).foregroundColor(.textSecondary)
+                        }
+                    }
+                    .padding(16).background(Color.surfaceBg).clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    // 입력 필드
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("YouTube URL").font(.system(size: 16, weight: .semibold)).foregroundColor(.textSecondary)
+                        HStack(spacing: 10) {
+                            Image(systemName: "link").foregroundColor(.textTertiary)
+                            TextField("https://www.youtube.com/watch?v=...", text: $urlText)
+                                .font(.system(size: 17))
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                            if !urlText.isEmpty {
+                                Button { urlText = "" } label: {
+                                    Image(systemName: "xmark.circle.fill").foregroundColor(.textTertiary)
+                                }
+                            }
+                        }
+                        .padding(14)
+                        .background(Color.surfaceBg)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.brand.opacity(urlText.isEmpty ? 0 : 0.4), lineWidth: 1))
+                    }
+
+                    // 검증 버튼
+                    Button {
+                        runValidation()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isChecking {
+                                ProgressView().tint(.white).scaleEffect(0.8)
+                                Text("AI 분석 중...").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                            } else {
+                                Image(systemName: "checkmark.shield.fill")
+                                Text("영상 검증하기").font(.system(size: 18, weight: .bold)).foregroundColor(.white)
+                            }
+                        }
+                        .frame(maxWidth: .infinity).padding(.vertical, 24)
+                        .background(urlText.isEmpty ? Color.textTertiary : Color.brand)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(urlText.isEmpty || isChecking)
+
+                    // 결과
+                    if let result {
+                        resultCard(result)
+                            .transition(.scale(scale: 0.95).combined(with: .opacity))
+                    }
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("내 영상 검증")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("닫기") { dismiss() }
+                }
+            }
+        }
+    }
+
+    func runValidation() {
+        withAnimation { result = nil }
+        isChecking = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            isChecking = false
+            withAnimation(.spring(response: 0.18)) {
+                if urlText.contains("youtube.com") || urlText.contains("youtu.be") {
+                    result = .pass("현재 초기 회복기에 적합한 무릎 재활 영상입니다. 공식 의료 채널 확인 완료, 단계별 운동 내용이 포함되어 있습니다.")
+                } else {
+                    result = .fail("공식 의료 채널이 아니거나 현재 회복 단계와 맞지 않는 영상입니다. 과부하 운동이 포함될 수 있습니다.")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    func resultCard(_ result: ValidationResult) -> some View {
+        switch result {
+        case .pass(let reason):
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    Circle().fill(Color.success.opacity(0.15)).frame(width: 44, height: 44)
+                    Image(systemName: "checkmark.seal.fill").foregroundColor(.success).font(.system(size: 22))
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("✅ 적합한 영상").font(.system(size: 18, weight: .bold)).foregroundColor(.success)
+                    Text(reason).font(.system(size: 16)).foregroundColor(.textSecondary).lineSpacing(4)
+                }
+            }
+            .padding(16)
+            .background(Color.success.opacity(0.08))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.success.opacity(0.3), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+
+        case .fail(let reason):
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    Circle().fill(Color.danger.opacity(0.15)).frame(width: 44, height: 44)
+                    Image(systemName: "xmark.shield.fill").foregroundColor(.danger).font(.system(size: 22))
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("❌ 부적합 영상").font(.system(size: 18, weight: .bold)).foregroundColor(.danger)
+                    Text(reason).font(.system(size: 16)).foregroundColor(.textSecondary).lineSpacing(4)
+                }
+            }
+            .padding(16)
+            .background(Color.danger.opacity(0.08))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.danger.opacity(0.3), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+    }
+}
+
+// MARK: - SubtitlePlayerView (한국어 자막 플레이어)
+
+struct SubtitlePlayerView: View {
+    @Environment(\.dismiss) private var dismiss
+    let videoTitle: String
+
+    @State private var isPlaying = false
+    @State private var progress: Double = 0
+    @State private var subtitleIndex = 0
+    @State private var timer: Timer? = nil
+
+    let subtitles = [
+        "지금부터 무릎 구부리기 재활 운동을 시작하겠습니다.",
+        "천천히, 통증이 없는 범위에서 무릎을 구부려 주세요.",
+        "발뒤꿈치를 침대 쪽으로 당기면서 무릎을 구부립니다.",
+        "이 자세를 5초간 유지해 주세요. 하나, 둘, 셋...",
+        "천천히 원래 자세로 돌아옵니다. 10회 반복합니다.",
+        "수술 후 ROM 회복에 매우 중요한 운동입니다.",
+        "통증이 심하면 즉시 중단하고 의사와 상담하세요.",
+    ]
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // 상단 바
+                HStack {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                    VStack(spacing: 2) {
+                        Text("한국어 자막").font(.system(size: 15, weight: .semibold)).foregroundColor(.brand)
+                        Text(videoTitle).font(.system(size: 16, weight: .medium)).foregroundColor(.white).lineLimit(1)
+                    }
+                    Spacer()
+                    // 자막 배지
+                    HStack(spacing: 4) {
+                        Image(systemName: "captions.bubble.fill").font(.system(size: 15)).foregroundColor(.brand)
+                        Text("AI 자막").font(.system(size: 15, weight: .bold)).foregroundColor(.brand)
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Color.brand.opacity(0.15))
+                    .clipShape(Capsule())
+                }
+                .padding(.horizontal, 20).padding(.top, 16)
+
+                Spacer()
+
+                // 가상 영상 화면
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(LinearGradient(
+                            colors: [Color(hex: "1a2a4a"), Color(hex: "0d1117")],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ))
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .padding(.horizontal, 16)
+
+                    if !isPlaying {
+                        Button { startPlayback() } label: {
+                            ZStack {
+                                Circle().fill(.white.opacity(0.15)).frame(width: 72, height: 72)
+                                Image(systemName: "play.fill").font(.system(size: 28)).foregroundColor(.white)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                // 한국어 자막 오버레이
+                ZStack {
+                    if isPlaying {
+                        Text(subtitles[subtitleIndex])
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20).padding(.vertical, 8)
+                            .background(Color.black.opacity(0.75))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, 20)
+                            .id(subtitleIndex)
+                            .transition(.opacity)
+                    } else {
+                        Text("▶ 재생 버튼을 눌러 한국어 자막과 함께 시청하세요")
+                            .font(.system(size: 16))
+                            .foregroundColor(.white.opacity(0.5))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+                    }
+                }
+                .frame(height: 60)
+                .padding(.top, 12)
+
+                // 타임라인
+                VStack(spacing: 8) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.2)).frame(height: 4)
+                            Capsule().fill(Color.brand).frame(width: geo.size.width * progress, height: 4)
+                        }
+                    }
+                    .frame(height: 4)
+
+                    HStack {
+                        Text(timeString(progress * 180)).font(.system(size: 15, weight: .medium)).foregroundColor(.white.opacity(0.5))
+                        Spacer()
+                        Text("3:00").font(.system(size: 15, weight: .medium)).foregroundColor(.white.opacity(0.5))
+                    }
+                }
+                .padding(.horizontal, 20).padding(.top, 16)
+
+                // 컨트롤
+                HStack(spacing: 40) {
+                    Button {
+                        subtitleIndex = max(0, subtitleIndex - 1)
+                    } label: {
+                        Image(systemName: "backward.fill").font(.system(size: 26)).foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        if isPlaying { pausePlayback() } else { startPlayback() }
+                    } label: {
+                        ZStack {
+                            Circle().fill(Color.brand).frame(width: 56, height: 56)
+                            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                .font(.system(size: 26)).foregroundColor(.white)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        subtitleIndex = min(subtitles.count - 1, subtitleIndex + 1)
+                    } label: {
+                        Image(systemName: "forward.fill").font(.system(size: 26)).foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 20)
+
+                Spacer()
+
+                // 자막 생성 정보
+                HStack(spacing: 6) {
+                    Image(systemName: "waveform").font(.system(size: 15)).foregroundColor(.textTertiary)
+                    Text("Whisper STT → GPT-4o 번역 → 의료 용어 보정")
+                        .font(.system(size: 15)).foregroundColor(.textTertiary)
+                }
+                .padding(.bottom, 32)
+            }
+        }
+        .onDisappear { pausePlayback() }
+    }
+
+    func startPlayback() {
+        isPlaying = true
+        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            progress = min(1.0, progress + 0.05 / 180)
+            let idx = Int(progress * Double(subtitles.count - 1))
+            if idx != subtitleIndex {
+                withAnimation(.easeInOut(duration: 0.18)) { subtitleIndex = idx }
+            }
+            if progress >= 1.0 { pausePlayback() }
+        }
+    }
+
+    func pausePlayback() {
+        isPlaying = false
+        timer?.invalidate()
+        timer = nil
+    }
+
+    func timeString(_ seconds: Double) -> String {
+        let s = Int(seconds)
+        return String(format: "%d:%02d", s / 60, s % 60)
+    }
 }
 
 struct ExercisePhaseButton: View {
@@ -2300,11 +2766,11 @@ struct ExercisePhaseButton: View {
     let isCurrent: Bool
     var selected: Bool { selectedPhase == phase }
     var body: some View {
-        Button { withAnimation(.spring(response: 0.3)) { selectedPhase = phase } } label: {
+        Button { withAnimation(.spring(response: 0.18)) { selectedPhase = phase } } label: {
             HStack(spacing: 5) {
-                Text(phase.rawValue).font(.system(size: 14, weight: .medium))
+                Text(phase.rawValue).font(.system(size: 17, weight: .medium))
                 if isCurrent {
-                    Text("현재").font(.system(size: 11, weight: .bold))
+                    Text("현재").font(.system(size: 15, weight: .bold))
                         .foregroundColor(selected ? .white.opacity(0.85) : .exMain)
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(selected ? Color.white.opacity(0.25) : Color.exLight)
@@ -2344,7 +2810,7 @@ struct ExerciseCard: View {
     }
 
     var body: some View {
-        Button { withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { expanded.toggle() } } label: {
+        Button { withAnimation(.spring(response: 0.18, dampingFraction: 0.8)) { expanded.toggle() } } label: {
             VStack(alignment: .leading, spacing: 0) {
                 exerciseRow
                 if expanded { expandedContent }
@@ -2356,7 +2822,7 @@ struct ExerciseCard: View {
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 2)
         .overlay(alignment: .topTrailing) {
             if isCurrent {
-                Text("지금 추천").font(.system(size: 11, weight: .bold)).foregroundColor(.white)
+                Text("지금 추천").font(.system(size: 15, weight: .bold)).foregroundColor(.white)
                     .padding(.horizontal, 10).padding(.vertical, 4)
                     .background(Color.exMain).clipShape(Capsule())
                     .padding(.top, 14).padding(.trailing, 14)
@@ -2368,11 +2834,11 @@ struct ExerciseCard: View {
         HStack(spacing: 14) {
             PivotIcon(systemName: exercise.sfSymbol, color: .exMain, bgColor: .exLight, size: 60)
             VStack(alignment: .leading, spacing: 5) {
-                Text(exercise.title).font(.system(size: 17, weight: .bold)).foregroundColor(.textPrimary)
+                Text(exercise.title).font(.system(size: 20, weight: .bold)).foregroundColor(.textPrimary)
                 HStack(spacing: 6) {
-                    Label("\(exercise.durationMin)분", systemImage: "clock").font(.subheadline).foregroundColor(.textSecondary)
+                    Label("\(exercise.durationMin)분", systemImage: "clock").font(.system(size: 18, weight: .medium)).foregroundColor(.textSecondary)
                     Text("·").foregroundColor(.textTertiary)
-                    Text(exercise.phase.rawValue).font(.caption.bold()).foregroundColor(.exMain)
+                    Text(exercise.phase.rawValue).font(.system(size: 15, weight: .bold)).foregroundColor(.exMain)
                         .padding(.horizontal, 8).padding(.vertical, 3).background(Color.exLight).clipShape(Capsule())
                 }
             }
@@ -2384,7 +2850,7 @@ struct ExerciseCard: View {
     var expandedContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             Divider().padding(.top, 14)
-            Text(exercise.description).font(.subheadline).foregroundColor(.textSecondary).lineSpacing(5)
+            Text(exercise.description).font(.system(size: 18, weight: .medium)).foregroundColor(.textSecondary).lineSpacing(5)
 
             // 속도 가이드 (4)
             SpeedGuideRow(speedGuide: exercise.speedGuide)
@@ -2407,10 +2873,10 @@ struct SpeedGuideRow: View {
     let speedGuide: String
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "speedometer").foregroundColor(.brand).font(.subheadline)
+            Image(systemName: "speedometer").foregroundColor(.brand).font(.system(size: 18, weight: .medium))
             VStack(alignment: .leading, spacing: 2) {
-                Text("속도 가이드").font(.system(size: 12, weight: .semibold)).foregroundColor(.brand)
-                Text(speedGuide).font(.system(size: 14)).foregroundColor(.textPrimary)
+                Text("속도 가이드").font(.system(size: 15, weight: .semibold)).foregroundColor(.brand)
+                Text(speedGuide).font(.system(size: 17)).foregroundColor(.textPrimary)
             }
         }
         .padding(12).background(Color.brandBg).clipShape(RoundedRectangle(cornerRadius: 10))
@@ -2434,10 +2900,10 @@ struct ContractionTimer: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("근수축 타이머").font(.system(size: 14, weight: .semibold)).foregroundColor(.exMain)
+                Text("근수축 타이머").font(.system(size: 17, weight: .semibold)).foregroundColor(.exMain)
                 Spacer()
                 Text("\(completedSets) / \(targetSets) 세트")
-                    .font(.system(size: 13, weight: .bold)).foregroundColor(isDone ? .success : .textPrimary)
+                    .font(.system(size: 16, weight: .bold)).foregroundColor(isDone ? .success : .textPrimary)
             }
             HStack(spacing: 16) {
                 ZStack {
@@ -2447,22 +2913,22 @@ struct ContractionTimer: View {
                         .rotationEffect(.degrees(-90)).frame(width: 72, height: 72)
                     VStack(spacing: 0) {
                         Text(isRunning ? "\(min(elapsed, targetSec))" : "\(targetSec)")
-                            .font(.system(size: 22, weight: .bold)).foregroundColor(.exMain)
-                        Text("초").font(.system(size: 11)).foregroundColor(.textSecondary)
+                            .font(.system(size: 26, weight: .bold)).foregroundColor(.exMain)
+                        Text("초").font(.system(size: 15)).foregroundColor(.textSecondary)
                     }
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(timerStatusText).font(.system(size: 14, weight: .semibold)).foregroundColor(.textPrimary)
+                    Text(timerStatusText).font(.system(size: 17, weight: .semibold)).foregroundColor(.textPrimary)
                     HStack(spacing: 8) {
                         Button { resetTimer() } label: {
-                            Text("리셋").font(.system(size: 13, weight: .semibold)).foregroundColor(.textSecondary)
+                            Text("리셋").font(.system(size: 16, weight: .semibold)).foregroundColor(.textSecondary)
                                 .padding(.horizontal, 14).padding(.vertical, 8)
                                 .background(Color.surfaceBg).clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
                         Button { toggleTimer() } label: {
                             Text(isRunning ? "일시정지" : isDone ? "완료!" : elapsed == 0 ? "시작" : "계속")
-                                .font(.system(size: 13, weight: .bold)).foregroundColor(.white)
+                                .font(.system(size: 16, weight: .bold)).foregroundColor(.white)
                                 .padding(.horizontal, 14).padding(.vertical, 8)
                                 .background(isDone ? Color.success : Color.exMain).clipShape(Capsule())
                         }
@@ -2506,14 +2972,14 @@ struct RepCounter: View {
     @State private var count = 0
     var body: some View {
         HStack {
-            Text("횟수 카운터").font(.system(size: 14, weight: .semibold)).foregroundColor(.exMain)
+            Text("횟수 카운터").font(.system(size: 17, weight: .semibold)).foregroundColor(.exMain)
             Spacer()
             HStack(spacing: 16) {
                 Button { count = max(0, count - 1) } label: {
                     Image(systemName: "minus.circle.fill").font(.title2).foregroundColor(.textTertiary)
                 }
                 .buttonStyle(.plain)
-                Text("\(count) / \(targetSets)").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
+                Text("\(count) / \(targetSets)").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                 Button {
                     let next = min(targetSets, count + 1)
                     count = next
@@ -2554,15 +3020,15 @@ struct ROMLineChart: View {
             RuleMark(y: .value("목표", 90)).foregroundStyle(Color.success.opacity(0.6))
                 .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
                 .annotation(position: .trailing) {
-                    Text("목표").font(.caption).foregroundColor(.success)
+                    Text("목표").font(.system(size: 15, weight: .medium)).foregroundColor(.success)
                 }
         }
         .frame(height: 170)
         .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-            AxisValueLabel(format: .dateTime.month().day()).font(.caption)
+            AxisValueLabel(format: .dateTime.month().day()).font(.system(size: 15, weight: .medium))
         }}
         .chartYAxis { AxisMarks { v in
-            AxisValueLabel { Text("\(v.as(Int.self) ?? 0)°").font(.caption) }
+            AxisValueLabel { Text("\(v.as(Int.self) ?? 0)°").font(.system(size: 15, weight: .medium)) }
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
         }}
     }
@@ -2579,10 +3045,10 @@ struct PainBarChart: View {
         }
         .frame(height: 130).chartYScale(domain: 0...10)
         .chartXAxis { AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-            AxisValueLabel(format: .dateTime.month().day()).font(.caption)
+            AxisValueLabel(format: .dateTime.month().day()).font(.system(size: 15, weight: .medium))
         }}
         .chartYAxis { AxisMarks(values: [0, 5, 10]) { v in
-            AxisValueLabel { Text("\(v.as(Int.self) ?? 0)").font(.caption) }
+            AxisValueLabel { Text("\(v.as(Int.self) ?? 0)").font(.system(size: 15, weight: .medium)) }
             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
         }}
     }
@@ -2711,7 +3177,7 @@ struct MyRecordsView: View {
         VStack(spacing: 10) {
             Image(systemName: "chart.line.uptrend.xyaxis")
                 .font(.system(size: 32)).foregroundColor(.textTertiary)
-            Text(message).font(.system(size: 14)).foregroundColor(.textSecondary)
+            Text(message).font(.system(size: 17)).foregroundColor(.textSecondary)
         }
         .frame(maxWidth: .infinity).frame(height: 120)
     }
@@ -2755,8 +3221,8 @@ struct TimeRangeButton: View {
     @Binding var selectedRange: MyRecordsView.TimeRange
     var selected: Bool { selectedRange == range }
     var body: some View {
-        Button { withAnimation(.spring(response: 0.3)) { selectedRange = range } } label: {
-            Text(range.rawValue).font(.system(size: 15, weight: .medium))
+        Button { withAnimation(.spring(response: 0.18)) { selectedRange = range } } label: {
+            Text(range.rawValue).font(.system(size: 18, weight: .medium))
                 .foregroundColor(selected ? .white : .textSecondary)
                 .padding(.horizontal, 18).padding(.vertical, 9)
                 .background(selected ? Color.brand : Color.surfaceBg).clipShape(Capsule())
@@ -2772,10 +3238,10 @@ struct RecordSummaryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             PivotIcon(systemName: icon, color: color, bgColor: bgColor, size: 36)
-            Text(value).font(.system(size: 20, weight: .bold)).foregroundColor(color)
+            Text(value).font(.system(size: 22, weight: .bold)).foregroundColor(color)
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 13, weight: .semibold)).foregroundColor(.textPrimary)
-                Text(sub).font(.caption).foregroundColor(.textSecondary)
+                Text(label).font(.system(size: 16, weight: .semibold)).foregroundColor(.textPrimary)
+                Text(sub).font(.system(size: 15, weight: .medium)).foregroundColor(.textSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(14)
@@ -2794,7 +3260,7 @@ struct PhaseStep: View {
                     .frame(width: 20, height: 20)
                 if stepState == .current { Circle().stroke(color, lineWidth: 3).frame(width: 28, height: 28) }
             }
-            Text(label).font(.system(size: 11)).foregroundColor(stepState == .current ? color : .textSecondary)
+            Text(label).font(.system(size: 15)).foregroundColor(stepState == .current ? color : .textSecondary)
                 .multilineTextAlignment(.center).lineSpacing(3)
         }
     }
@@ -2807,9 +3273,9 @@ struct InfoRow: View {
     var body: some View {
         HStack {
             PivotIcon(systemName: icon, color: color, bgColor: color.opacity(0.12), size: 36)
-            Text(title).font(.system(size: 15)).foregroundColor(.textPrimary)
+            Text(title).font(.system(size: 18)).foregroundColor(.textPrimary)
             Spacer()
-            Text(value).font(.system(size: 15)).foregroundColor(.textSecondary)
+            Text(value).font(.system(size: 18)).foregroundColor(.textSecondary)
         }
     }
 }
@@ -2839,7 +3305,7 @@ struct ProfileView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("편집") { showEdit = true }
-                        .font(.system(size: 15, weight: .medium)).foregroundColor(.brand)
+                        .font(.system(size: 18, weight: .medium)).foregroundColor(.brand)
                 }
             }
         }
@@ -2857,11 +3323,11 @@ struct ProfileView: View {
                 }
                 VStack(alignment: .leading, spacing: 5) {
                     Text(profile?.patientCode ?? "-")
-                        .font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
+                        .font(.system(size: 20, weight: .bold)).foregroundColor(.textPrimary)
                     HStack(spacing: 6) {
                         Circle().fill(Color.brand).frame(width: 6, height: 6)
                         Text("수술 후 \(profile?.podDay ?? 0)일 • \(profile?.phase ?? "-")")
-                            .font(.system(size: 13)).foregroundColor(.brand)
+                            .font(.system(size: 16)).foregroundColor(.brand)
                     }
                 }
                 Spacer()
@@ -2872,7 +3338,7 @@ struct ProfileView: View {
     var bodyInfoSection: some View {
         PivotCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text("신체 정보").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
+                Text("신체 정보").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                 let age = profile?.age ?? 0
                 InfoRow(icon: "person.text.rectangle", color: .brand, title: "나이",
                         value: age > 0 ? "\(age)세" : "-")
@@ -2892,7 +3358,7 @@ struct ProfileView: View {
     var rehabInfoSection: some View {
         PivotCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text("재활 정보").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
+                Text("재활 정보").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                 InfoRow(icon: "calendar", color: .brand, title: "수술일",
                         value: profile?.surgeryDate.formatted(.dateTime.year().month().day()) ?? "-")
                 Divider()
@@ -2912,28 +3378,28 @@ struct ProfileView: View {
     var legInfoSection: some View {
         PivotCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text("하지 정보").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
+                Text("하지 정보").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
 
                 HStack {
                     PivotIcon(systemName: "ruler.fill", color: .brand, bgColor: Color.brand.opacity(0.12), size: 36)
-                    Text("다리 길이 차이").font(.system(size: 15)).foregroundColor(.textPrimary)
+                    Text("다리 길이 차이").font(.system(size: 18)).foregroundColor(.textPrimary)
                     Spacer()
                     let diff = profile?.legLengthDifferenceMM ?? 0
                     Text(diff == 0 ? "차이 없음" : String(format: "%.1f mm", diff))
-                        .font(.system(size: 15)).foregroundColor(diff == 0 ? .textSecondary : .warning)
+                        .font(.system(size: 18)).foregroundColor(diff == 0 ? .textSecondary : .warning)
                 }
                 Divider()
 
                 HStack {
                     PivotIcon(systemName: "shoeprints.fill", color: .exMain, bgColor: Color.exMain.opacity(0.12), size: 36)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("깔창 착용").font(.system(size: 15)).foregroundColor(.textPrimary)
-                        Text("다리 길이 차이 보정").font(.system(size: 12)).foregroundColor(.textSecondary)
+                        Text("깔창 착용").font(.system(size: 18)).foregroundColor(.textPrimary)
+                        Text("다리 길이 차이 보정").font(.system(size: 15)).foregroundColor(.textSecondary)
                     }
                     Spacer()
                     let using = profile?.useInsole ?? false
                     Text(using ? "착용 중" : "미착용")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(using ? .success : .textSecondary)
                 }
 
@@ -2941,7 +3407,7 @@ struct ProfileView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "info.circle.fill").foregroundColor(.warning)
                         Text("다리 길이 차이가 큰 경우 깔창 착용을 권장합니다.")
-                            .font(.system(size: 12)).foregroundColor(.textSecondary)
+                            .font(.system(size: 15)).foregroundColor(.textSecondary)
                     }
                     .padding(10).background(Color.warningBg).clipShape(RoundedRectangle(cornerRadius: 8))
                 }
@@ -2952,7 +3418,7 @@ struct ProfileView: View {
     var clinicalInfoSection: some View {
         PivotCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text("생활/임상 정보").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
+                Text("생활/임상 정보").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                 InfoRow(icon: "flame.fill", color: .warning, title: "수술 전 활동도",
                         value: profile?.preSurgeryActivity ?? "-")
                 Divider()
@@ -2968,7 +3434,7 @@ struct ProfileView: View {
     var appInfoSection: some View {
         PivotCard {
             VStack(alignment: .leading, spacing: 14) {
-                Text("앱 정보").font(.system(size: 16, weight: .bold)).foregroundColor(.textPrimary)
+                Text("앱 정보").font(.system(size: 18, weight: .bold)).foregroundColor(.textPrimary)
                 InfoRow(icon: "info.circle", color: .brand, title: "버전", value: "1.0.0")
                 Divider()
                 InfoRow(icon: "shield.lefthalf.filled", color: .success, title: "개인정보 처리방침", value: "보기 →")
@@ -2999,7 +3465,7 @@ struct EditProfileView: View {
                     editSection(title: "수술 정보") {
                         editField(label: "이름") {
                             TextField("이름", text: $profile.patientCode)
-                                .font(.system(size: 15)).textInputAutocapitalization(.never)
+                                .font(.system(size: 18)).textInputAutocapitalization(.never)
                         }
                         Divider().padding(.horizontal, -4)
                         editField(label: "수술일") {
@@ -3022,24 +3488,24 @@ struct EditProfileView: View {
                         editField(label: "나이") {
                             HStack {
                                 TextField("0", text: $ageText, onCommit: { profile.age = Int(ageText) ?? profile.age })
-                                    .keyboardType(.numberPad).font(.system(size: 15))
-                                Text("세").foregroundColor(.textSecondary).font(.system(size: 14))
+                                    .keyboardType(.numberPad).font(.system(size: 18))
+                                Text("세").foregroundColor(.textSecondary).font(.system(size: 17))
                             }
                         }
                         Divider().padding(.horizontal, -4)
                         editField(label: "키 (cm)") {
                             TextField("0", text: $heightText, onCommit: { profile.heightCm = Double(heightText) ?? profile.heightCm })
-                                .keyboardType(.decimalPad).font(.system(size: 15))
+                                .keyboardType(.decimalPad).font(.system(size: 18))
                         }
                         Divider().padding(.horizontal, -4)
                         editField(label: "몸무게 (kg)") {
                             TextField("0", text: $weightText, onCommit: { profile.weightKg = Double(weightText) ?? profile.weightKg })
-                                .keyboardType(.decimalPad).font(.system(size: 15))
+                                .keyboardType(.decimalPad).font(.system(size: 18))
                         }
                         Divider().padding(.horizontal, -4)
                         editField(label: "다리 길이 차이 (mm)") {
                             TextField("0", text: $legDiffText, onCommit: { profile.legLengthDifferenceMM = Double(legDiffText) ?? profile.legLengthDifferenceMM })
-                                .keyboardType(.decimalPad).font(.system(size: 15))
+                                .keyboardType(.decimalPad).font(.system(size: 18))
                         }
                         Divider().padding(.horizontal, -4)
                         editField(label: "깔창 착용") {
@@ -3087,7 +3553,7 @@ struct EditProfileView: View {
                         profile.legLengthDifferenceMM = Double(legDiffText) ?? profile.legLengthDifferenceMM
                         dismiss()
                     }
-                    .font(.system(size: 15, weight: .semibold)).foregroundColor(.brand)
+                    .font(.system(size: 18, weight: .semibold)).foregroundColor(.brand)
                 }
             }
         }
@@ -3102,7 +3568,7 @@ struct EditProfileView: View {
     @ViewBuilder
     func editSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title).font(.system(size: 13, weight: .semibold)).foregroundColor(.textSecondary)
+            Text(title).font(.system(size: 16, weight: .semibold)).foregroundColor(.textSecondary)
                 .padding(.horizontal, 4).padding(.bottom, 8)
             VStack(spacing: 0) {
                 content()
@@ -3116,7 +3582,7 @@ struct EditProfileView: View {
     @ViewBuilder
     func editField<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack {
-            Text(label).font(.system(size: 15)).foregroundColor(.textPrimary)
+            Text(label).font(.system(size: 18)).foregroundColor(.textPrimary)
             Spacer()
             content()
         }
